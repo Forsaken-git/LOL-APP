@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Renim A. — Team Hub
 
-## Getting Started
+A shareable web app for your League of Legends team: calendar, match stats, picks/bans, player pools, weekly availability, draft practice, and tierlists.
 
-First, run the development server:
+## Features
+
+- **Overview** — Win/loss, win rate, red/blue side stats, last MVP, recent matches
+- **Calendar** — Month view + create matches, training, scrims, meetings
+- **Matches** — Full history with league filter
+- **Picks & Bans** — Most picked/banned champions
+- **Players** — Roster with champion pools (official vs training)
+- **Schedule** — Weekly availability per player + team overlap overview
+- **Drafter** — Practice drafts and save them
+- **Tierlists** — Create and edit S–D tierlists
+
+**LCU spectate collector** — capture games while spectating (no Riot API key). Riot Match-V5 auto-import is still planned.
+
+## Collector script / external data
+
+The app is built to **react to data your script pushes** — not only manual seed data.
+
+1. Your script outputs JSON (see `data/example-export.json`).
+2. POST it to `/api/ingest` (use stable `externalId` on matches/players for upserts).
+3. Refresh the hub — overview, matches, picks/bans, and players update automatically.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Local test push
+npm run ingest -- data/example-export.json
+
+# Import team JSON folders (cwl, scrims, titans league, officials)
+npm run ingest:teams
+
+# Import all saved LCU JSONs from data/exports/ (no dev server)
+npm run ingest:exports
+
+# Or Python
+python scripts/push_ingest.py data/example-export.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Full API reference: **[docs/INGEST.md](docs/INGEST.md)**.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### LCU spectate collector (auto-capture while watching)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+While you spectate in the **League client**, a local Python tool reads LCU + Live Client Data and pushes finished games to the hub.
 
-## Learn More
+```bash
+copy data\lcu-spectate.config.example.json data\lcu-spectate.config.json
+# edit roster + teamSummoners
 
-To learn more about Next.js, take a look at the following resources:
+npm run dev          # hub
+npm run lcu:watch    # collector (separate terminal)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Guide: **[docs/LCU-SPECTATE.md](docs/LCU-SPECTATE.md)**.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Quick start (local)
 
-## Deploy on Vercel
+```bash
+npm install
+npm run db:push
+npm run db:seed
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Open [http://localhost:3000](http://localhost:3000).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Publish on GitHub + live URL
+
+Step-by-step guide (repo, Turso, Vercel, ingest keys, privacy): **[docs/GITHUB.md](docs/GITHUB.md)**.
+
+Quick outline:
+
+1. Push this repo to GitHub (see guide — no secrets or `dev.db` in Git).
+2. Copy `.env.example` → `.env` locally; copy `data/team-roster.example.json` → `data/team-roster.json` and edit.
+3. Import the repo on [Vercel](https://vercel.com), set `DATABASE_URL` (e.g. [Turso](https://turso.tech)) and `INGEST_API_KEY`.
+4. Build uses `vercel.json`: `prisma db push` then `next build`.
+5. Seed production once: `npm run db:seed` (with production `DATABASE_URL` in your shell).
+
+### Customizing demo data
+
+Edit `prisma/seed.ts` with your real player names, leagues, and matches, then run:
+
+```bash
+npm run db:seed
+```
+
+## Tech stack
+
+- Next.js 16 (App Router)
+- Prisma + SQLite (local)
+- Tailwind CSS 4
+
+## Project structure
+
+```
+src/app/          Pages (dashboard, calendar, matches, …)
+src/components/   UI and interactive tools
+src/lib/          Prisma client, stats helpers, champion list
+prisma/           Schema and seed data
+```
+
+## Roadmap
+
+- [ ] Login + roles (player, sub, coach, manager, analytics)
+- [x] LCU spectate collector — auto-capture while spectating
+- [ ] Riot API — auto-import matches and summoner stats
+- [ ] Match entry form (add games without editing seed)
+- [ ] Discord notifications for calendar events

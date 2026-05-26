@@ -4,11 +4,33 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "ingest": "tsx scripts/ingest-file.ts",
+    "ingest:bulk": "tsx scripts/ingest-bulk.ts",
+    "ingest:exports": "tsx scripts/ingest-bulk.ts data/exports --local",
+    "ingest:inspect": "tsx scripts/inspect-json.ts",
+    "ingest:teams": "tsx scripts/ingest-teams.ts",
+    "prune:players": "tsx scripts/prune-players.ts",
+    "seed:demo": "tsx scripts/seed-demo-match.ts",
+    "clean:demo": "tsx scripts/seed-demo-match.ts --clean",
+    "lcu:watch": "python -m scripts.lcu_spectate watch",
+    "lcu:status": "python -m scripts.lcu_spectate status",
+    "lcu:launch": "python -m scripts.lcu_spectate launch",
+    "lcu:export": "python -m scripts.lcu_spectate export-eog",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "date-fns": "^4.3.0",
+    "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
@@ -20,7 +42,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4",
+    "tsx": "^4.22.3",
     "typescript": "^5"
   }
 }

@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  SUB
+  MANAGER
+  COACH
+  ANALYTICS
+}
+
+enum LoLRole {
+  TOP
+  JUNGLE
+  MID
+  ADC
+  SUPPORT
+  FILL
+}
+
+enum EventType {
+  MATCH
+  CWL
+  TITANS
+  TRAINING
+  SCRIM
+  MEETING
+  OTHER
+}
+
+enum MatchResult {
+  WIN
+  LOSS
+}
+
+enum Side {
+  RED
+  BLUE
+}
+
+enum GameType {
+  OFFICIAL
+  TRAINING
+  SCRIM
+}
+
+enum PickBanType {
+  PICK
+  BAN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  role      UserRole @default(PLAYER)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  player    Player?
+}
+
+model Player {
+  id             String               @id @default(cuid())
+  externalId     String?              @unique
+  userId         String?              @unique
+  user           User?                @relation(fields: [userId], references: [id])
+  displayName    String
+  summonerName   String?
+  teamRole       LoLRole
+  memberRole     UserRole             @default(PLAYER)
+  active         Boolean              @default(true)
+  participations MatchParticipant[]
+  mvpMatches     Match[]              @relation("MatchMvp")
+  availability   AvailabilitySlot[]
+  updatedAt      DateTime             @updatedAt @default(now())
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  externalId  String?   @unique
+  title       String
+  type        EventType
+  startAt     DateTime
+  endAt       DateTime?
+  description String?
+  location    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt @default(now())
+}
+
+model Match {
+  id             String               @id @default(cuid())
+  externalId     String?              @unique
+  playedAt       DateTime
+  league         String
+  opponent       String?
+  result         MatchResult
+  side           Side
+  gameType       GameType             @default(OFFICIAL)
+  notes          String?
+  source         String?
+  mvpId          String?
+  mvp            Player?              @relation("MatchMvp", fields: [mvpId], references: [id])
+  participants   MatchParticipant[]
+  pickBans       PickBan[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt @default(now())
+}
+
+model MatchParticipant {
+  id       String  @id @default(cuid())
+  matchId  String
+  match    Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  playerId String
+  player   Player  @relation(fields: [playerId], references: [id])
+  champion String
+  side     Side?
+  kills    Int?
+  deaths   Int?
+  assists  Int?
+}
+
+model PickBan {
+  id        String      @id @default(cuid())
+  matchId   String
+  match     Match       @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  champion  String
+  type      PickBanType
+  side      Side
+  order     Int         @default(0)
+}
+
+model AvailabilitySlot {
+  id        String   @id @default(cuid())
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  slots     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([playerId, weekStart])
+}
+
+model Tierlist {
+  id        String   @id @default(cuid())
+  name      String
+  category  String   @default("champions")
+  rows      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DraftSession {
+  id        String   @id @default(cuid())
+  name      String   @default("Practice Draft")
+  bluePicks String   @default("[]")
+  blueBans  String   @default("[]")
+  redPicks  String   @default("[]")
+  redBans   String   @default("[]")
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model IngestRun {
+  id        String   @id @default(cuid())
+  source    String?
+  summary   String
+  success   Boolean  @default(true)
+  createdAt DateTime @default(now())
+}

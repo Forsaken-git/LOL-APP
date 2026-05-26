@@ -33,6 +33,22 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# database
+prisma/dev.db
+prisma/dev.db-journal
+
+# collector exports (keep examples)
+data/*
+!data/example-export.json
+!data/demo-match.json
+!data/team-roster.example.json
+!data/import/
+!data/import/README.md
+!data/lcu-spectate.config.example.json
+data/lcu-spectate.config.json
+data/exports/
+data/cache/
+
 # vercel
 .vercel
 

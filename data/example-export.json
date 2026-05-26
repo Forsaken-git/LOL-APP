@@ -1,0 +1,64 @@
+{
+  "source": "my-collector-script",
+  "players": [
+    {
+      "externalId": "player-nova",
+      "displayName": "Nova",
+      "summonerName": "Nova#EUW",
+      "teamRole": "TOP",
+      "memberRole": "PLAYER"
+    },
+    {
+      "externalId": "player-spark",
+      "displayName": "Spark",
+      "summonerName": "Spark#EUW",
+      "teamRole": "MID",
+      "memberRole": "PLAYER"
+    }
+  ],
+  "matches": [
+    {
+      "externalId": "EUW1_7123456789",
+      "playedAt": "2026-05-24T19:30:00.000Z",
+      "league": "Regional League",
+      "opponent": "Phoenix Esports",
+      "result": "WIN",
+      "side": "BLUE",
+      "gameType": "OFFICIAL",
+      "source": "my-collector-script",
+      "mvpExternalId": "player-spark",
+      "participants": [
+        {
+          "playerExternalId": "player-nova",
+          "champion": "Renekton",
+          "kills": 4,
+          "deaths": 1,
+          "assists": 7
+        },
+        {
+          "playerExternalId": "player-spark",
+          "champion": "Ahri",
+          "kills": 8,
+          "deaths": 2,
+          "assists": 6
+        }
+      ],
+      "pickBans": [
+        { "champion": "Kalista", "type": "BAN", "side": "RED", "order": 0 },
+        { "champion": "Azir", "type": "BAN", "side": "RED", "order": 1 },
+        { "champion": "Ahri", "type": "PICK", "side": "BLUE", "order": 2 },
+        { "champion": "Renekton", "type": "PICK", "side": "BLUE", "order": 3 }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "externalId": "scrim-2026-05-28",
+      "title": "Scrim vs Academy",
+      "type": "SCRIM",
+      "startAt": "2026-05-28T18:00:00.000Z",
+      "endAt": "2026-05-28T22:00:00.000Z",
+      "description": "Imported from calendar script"
+    }
+  ]
+}
