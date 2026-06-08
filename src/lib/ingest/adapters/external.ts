@@ -117,6 +117,8 @@ function mapParticipant(raw: Record<string, unknown>): IngestParticipant | null 
     kills: pickNumber(raw, "kills", "k"),
     deaths: pickNumber(raw, "deaths", "d"),
     assists: pickNumber(raw, "assists", "a"),
+    cs: pickNumber(raw, "cs", "creepScore", "creep_score", "minions", "totalMinionsKilled"),
+    damage: pickNumber(raw, "damage", "dmg", "totalDamageDealtToChampions", "damageDealt"),
   };
 }
 

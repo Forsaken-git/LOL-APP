@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyIngestAuth } from "@/lib/ingest/auth";
 import { runIngest } from "@/lib/ingest/sync";
 import type { IngestMatch } from "@/lib/ingest/types";
+import { deleteMatchById } from "@/lib/match-delete";
 
 /** Upsert a single match by externalId (e.g. Riot match id). */
 export async function PUT(
@@ -42,6 +43,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
 
-  await prisma.match.delete({ where: { id: match.id } });
+  await deleteMatchById(match.id);
   return NextResponse.json({ ok: true, externalId });
 }

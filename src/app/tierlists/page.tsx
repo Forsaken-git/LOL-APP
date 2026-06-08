@@ -1,42 +1,41 @@
-import Link from "next/link";
-import { format } from "date-fns";
-import { prisma } from "@/lib/prisma";
-import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { NewTierlistForm } from "@/components/tierlists/TierlistEditor";
+import { TierlistsView } from "@/components/tierlists/TierlistsView";
+import { sortPlayersByRoster } from "@/lib/player-sort";
+import {
+  attachPlayersToTierlists,
+  listActivePlayers,
+  listAllTierlists,
+} from "@/lib/tierlist-db";
 
 export const dynamic = "force-dynamic";
 
 export default async function TierlistsPage() {
-  const tierlists = await prisma.tierlist.findMany({
-    orderBy: { updatedAt: "desc" },
-  });
+  const [tierlists, players] = await Promise.all([
+    listAllTierlists(),
+    listActivePlayers(),
+  ]);
+
+  const sortedPlayers = sortPlayersByRoster(players);
+  const withPlayers = attachPlayersToTierlists(tierlists, sortedPlayers);
 
   return (
     <div className="space-y-8">
       <PageHeader
         title="Tierlists"
-        description="Champion pools for meta, scrims, and patch notes"
-      >
-        <NewTierlistForm />
-      </PageHeader>
+        description="Per-player champion rankings for meta, scrims, and patch planning"
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {tierlists.map((t) => {
-          const rows = JSON.parse(t.rows) as Record<string, string[]>;
-          const total = Object.values(rows).flat().length;
-          return (
-            <Link key={t.id} href={`/tierlists/${t.id}`}>
-              <Card className="transition-all hover:border-accent/30 hover:shadow-[0_0_24px_rgba(139,124,246,0.08)]">
-                <h3 className="font-semibold text-foreground">{t.name}</h3>
-                <p className="mt-1 text-sm text-muted">
-                  {total} champions · Updated {format(t.updatedAt, "MMM d, yyyy")}
-                </p>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
+      <TierlistsView
+        players={sortedPlayers}
+        tierlists={withPlayers.map((t) => ({
+          id: t.id,
+          name: t.name,
+          rows: t.rows,
+          updatedAt: t.updatedAt.toISOString(),
+          playerId: t.playerId,
+          player: t.player,
+        }))}
+      />
     </div>
   );
 }

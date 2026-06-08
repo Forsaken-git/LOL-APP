@@ -136,9 +136,10 @@ button.btn-ghost:hover {
   border-bottom: 1px solid var(--border);
 }
 
-.table-head {
+.table-head th {
   border-bottom: 1px solid var(--border-strong);
   color: var(--muted);
+  font-weight: 500;
 }
 
 .progress-track {

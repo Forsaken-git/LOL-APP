@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
+import { formatDateTime24Compact } from "@/lib/datetime";
 import { X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -61,11 +62,11 @@ export function RecentMatches({ encounters }: { encounters: SerializedEncounter[
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="table-head">
-                  <th className="pb-2 pr-4 font-medium">Date</th>
-                  <th className="pb-2 pr-4 font-medium">League</th>
-                  <th className="pb-2 pr-4 font-medium">Opponent</th>
-                  <th className="pb-2 pr-4 font-medium">Result</th>
-                  <th className="pb-2 font-medium">State</th>
+                  <th className="pb-2 pr-4 text-muted">Date</th>
+                  <th className="pb-2 pr-4 text-muted">League</th>
+                  <th className="pb-2 pr-4 text-muted">Opponent</th>
+                  <th className="pb-2 pr-4 text-muted">Result</th>
+                  <th className="pb-2 text-muted">State</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,12 +160,12 @@ export function RecentMatches({ encounters }: { encounters: SerializedEncounter[
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="table-head">
-                    <th className="pb-2 pr-3 font-medium">Date</th>
-                    <th className="pb-2 pr-3 font-medium">League</th>
-                    <th className="pb-2 pr-3 font-medium">Opponent</th>
-                    <th className="pb-2 pr-3 font-medium">Side</th>
-                    <th className="pb-2 pr-3 font-medium">Result</th>
-                    <th className="pb-2 font-medium">State</th>
+                    <th className="pb-2 pr-3 text-muted">Date</th>
+                    <th className="pb-2 pr-3 text-muted">League</th>
+                    <th className="pb-2 pr-3 text-muted">Opponent</th>
+                    <th className="pb-2 pr-3 text-muted">Side</th>
+                    <th className="pb-2 pr-3 text-muted">Result</th>
+                    <th className="pb-2 text-muted">State</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,7 +176,7 @@ export function RecentMatches({ encounters }: { encounters: SerializedEncounter[
                       onClick={() => setScoreboardId(g.id)}
                     >
                       <td className="py-2.5 pr-3 text-foreground">
-                        {format(g.playedAt, "MMM d · HH:mm")}
+                        {formatDateTime24Compact(g.playedAt)}
                       </td>
                       <td className="py-2.5 pr-3 text-muted">{g.league}</td>
                       <td className="py-2.5 pr-3 text-muted">{g.opponent ?? "—"}</td>

@@ -40,7 +40,6 @@ prisma/dev.db-journal
 # collector exports (keep examples)
 data/*
 !data/example-export.json
-!data/demo-match.json
 !data/team-roster.example.json
 !data/import/
 !data/import/README.md

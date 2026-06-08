@@ -20,7 +20,7 @@ These stay **out** of Git (already in `.gitignore`):
 | `data/team-roster.json` | Real summoner names |
 | `data/import/`, `data/exports/` | Match exports |
 
-Safe to commit: `data/team-roster.example.json`, `data/demo-match.json`, `data/example-export.json`.
+Safe to commit: `data/team-roster.example.json`, `data/example-export.json`.
 
 Copy your real roster locally after clone:
 
@@ -95,7 +95,6 @@ $env:DATABASE_URL="libsql://..."   # Turso URL
 $env:INGEST_API_KEY="your-production-key"
 npx prisma db push
 npm run db:seed
-npm run seed:demo    # optional demo game
 ```
 
 Copy `data/team-roster.json` content into production by running ingest with your JSON, or edit seed / use `npm run ingest -- file.json --local` against prod `DATABASE_URL`.

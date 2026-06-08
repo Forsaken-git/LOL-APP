@@ -29,6 +29,13 @@ class LcuConnection:
         return f"Basic {token}"
 
 
+def _is_league_lockfile_path(path: Path) -> bool:
+    normalized = str(path).replace("\\", "/").lower()
+    if "riot client" in normalized:
+        return False
+    return "league of legends" in normalized
+
+
 def _lockfile_candidates() -> list[Path]:
     local = os.environ.get("LOCALAPPDATA", "")
     home = Path.home()
@@ -36,10 +43,14 @@ def _lockfile_candidates() -> list[Path]:
     paths: list[Path] = []
     if explicit:
         paths.append(Path(explicit))
-    # Prefer League Client (has gameflow / EOG). Riot Client alone is not enough.
+
+    # League lockfile — AppData (some installs) then game install folder (common on Windows).
     paths.extend(
         [
             Path(local) / "Riot Games" / "League of Legends" / "lockfile",
+            Path(r"C:\Riot Games\League of Legends\lockfile"),
+            Path(r"D:\Riot Games\League of Legends\lockfile"),
+            Path(r"E:\Riot Games\League of Legends\lockfile"),
             home
             / "Library"
             / "Application Support"
@@ -47,43 +58,64 @@ def _lockfile_candidates() -> list[Path]:
             / "League of Legends"
             / "lockfile",
             home / ".wine" / "drive_c" / "Riot Games" / "League of Legends" / "lockfile",
-            Path(local) / "Riot Games" / "Riot Client" / "Config" / "lockfile",
         ]
     )
+
+    install_root = os.environ.get("LEAGUE_INSTALL_DIR")
+    if install_root:
+        paths.append(Path(install_root) / "lockfile")
+
+    # Riot Client lockfile last — not sufficient for EOG, but used when require_league=False.
+    paths.append(Path(local) / "Riot Games" / "Riot Client" / "Config" / "lockfile")
     return paths
 
 
 def discover_lockfiles() -> list[Path]:
-    """All lockfiles under Riot Games (newest first)."""
-    local = Path(os.environ.get("LOCALAPPDATA", "")) / "Riot Games"
+    """Lockfiles under Riot folders; League install paths before Riot Client."""
     found: list[Path] = []
-    if local.is_dir():
-        for p in local.rglob("lockfile"):
+    roots = [
+        Path(os.environ.get("LOCALAPPDATA", "")) / "Riot Games",
+        Path(r"C:\Riot Games"),
+        Path(r"D:\Riot Games"),
+        Path(r"E:\Riot Games"),
+    ]
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for p in root.rglob("lockfile"):
             if p.is_file():
                 found.append(p)
+
     found.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    # De-dupe while preserving order
     seen: set[Path] = set()
-    unique: list[Path] = []
+    league: list[Path] = []
+    other: list[Path] = []
     for p in found:
         resolved = p.resolve()
-        if resolved not in seen:
-            seen.add(resolved)
-            unique.append(p)
-    return unique
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        (league if _is_league_lockfile_path(resolved) else other).append(resolved)
+    return league + other
 
 
 def read_lockfile(path: Path | None = None, *, require_league: bool = True) -> LcuConnection:
     if path is None:
         for candidate in _lockfile_candidates():
-            if candidate.is_file():
-                path = candidate
-                break
+            if not candidate.is_file():
+                continue
+            if require_league and not _is_league_lockfile_path(candidate):
+                continue
+            path = candidate
+            break
         if path is None:
             for candidate in discover_lockfiles():
-                if candidate.is_file():
-                    path = candidate
-                    break
+                if not candidate.is_file():
+                    continue
+                if require_league and not _is_league_lockfile_path(candidate):
+                    continue
+                path = candidate
+                break
     if path is None or not path.is_file():
         riot_only = (
             Path(os.environ.get("LOCALAPPDATA", ""))
@@ -100,12 +132,12 @@ def read_lockfile(path: Path | None = None, *, require_league: bool = True) -> L
         )
         raise FileNotFoundError(
             f"League Client lockfile not found. {hint}\n"
-            "Expected: %LOCALAPPDATA%\\Riot Games\\League of Legends\\lockfile\n"
+            "Expected: C:\\Riot Games\\League of Legends\\lockfile "
+            "(or %LOCALAPPDATA%\\Riot Games\\League of Legends\\lockfile)\n"
             "Override: set LCU_LOCKFILE to the full path to your lockfile."
         )
 
-    path_str = str(path).replace("\\", "/")
-    if require_league and "League of Legends" not in path_str and "league of legends" not in path_str.lower():
+    if require_league and not _is_league_lockfile_path(path):
         raise FileNotFoundError(
             f"Found lockfile at {path} but this is not the League Client "
             "(Riot Client only). Launch League of Legends from the Riot Client, then retry."
@@ -178,6 +210,10 @@ class LcuClient:
 
     def spectate_state(self) -> Any:
         return self.get_optional("/lol-spectator/v1/spectate")
+
+    def champ_select_session(self) -> dict[str, Any] | None:
+        data = self.get_optional("/lol-champ-select/v1/session", timeout=3.0)
+        return data if isinstance(data, dict) else None
 
     def eog_stats_block(self) -> dict[str, Any] | None:
         data = self.get_optional("/lol-end-of-game/v1/eog-stats-block", timeout=3.0)

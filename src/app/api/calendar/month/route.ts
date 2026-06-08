@@ -28,6 +28,13 @@ export async function GET(request: Request) {
     orderBy: { startAt: "asc" },
     select: { id: true, title: true, type: true, startAt: true },
   });
+  const playedMatches = await prisma.match.findMany({
+    where: {
+      status: "PLAYED",
+      playedAt: { gte: monthStart, lte: monthEnd },
+    },
+    select: { playedAt: true },
+  });
 
   const events: CalendarEvent[] = rows.map((e) => ({
     id: e.id,
@@ -37,6 +44,15 @@ export async function GET(request: Request) {
   }));
 
   const markerMap = buildMonthMarkers(events);
+  for (const match of playedMatches) {
+    const date = match.playedAt.toISOString().slice(0, 10);
+    const existing = markerMap.get(date);
+    if (existing) {
+      if (!existing.kinds.includes("played")) existing.kinds.push("played");
+      continue;
+    }
+    markerMap.set(date, { date, kinds: ["played"] });
+  }
   const days: DayMarker[] = Array.from(markerMap.values());
   const legend = legendForMonth(markerMap);
 

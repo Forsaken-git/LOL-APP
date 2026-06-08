@@ -6,6 +6,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,28 @@ def save_export(payload: dict[str, Any], export_dir: str, game_id: str | int | N
     stamp = game_id or "unknown"
     path = out_dir / f"lcu-{stamp}.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
+def save_jsonl_backup(
+    export_dir: str,
+    eog: dict[str, Any],
+    *,
+    gameflow_phase: str | None = None,
+) -> Path:
+    """One-line JSONL backup compatible with `npm run ingest:jsonl`."""
+    out_dir = Path(export_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    path = out_dir / f"game_data_{ts}.jsonl"
+    line = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "sources": {
+            "lcu_eog_stats": eog,
+            "lcu_gameflow_phase": gameflow_phase,
+        },
+    }
+    path.write_text(json.dumps(line, ensure_ascii=False) + "\n", encoding="utf-8")
     return path
 
 

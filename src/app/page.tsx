@@ -1,6 +1,6 @@
-import { format, startOfDay } from "date-fns";
+import { startOfDay } from "date-fns";
+import { formatDateTime24Weekday } from "@/lib/datetime";
 import { prisma } from "@/lib/prisma";
-import { matchWhereLeaguePlay } from "@/lib/competitions";
 import { computeTeamStats } from "@/lib/stats";
 import { buildEncounterSummaries } from "@/lib/match-encounters";
 import { Card } from "@/components/ui/Card";
@@ -13,9 +13,9 @@ import { SyncStatus } from "@/components/dashboard/SyncStatus";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [officialMatches, recentMatchRows, upcomingEvents] = await Promise.all([
+  const [playedMatches, recentMatchRows, upcomingEvents] = await Promise.all([
     prisma.match.findMany({
-      where: matchWhereLeaguePlay(),
+      where: { status: "PLAYED" },
       select: { result: true, side: true },
     }),
     prisma.match.findMany({
@@ -37,8 +37,14 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  const stats = computeTeamStats(officialMatches);
-  const recentEncounters = buildEncounterSummaries(recentMatchRows, 5).map((e) => ({
+  const stats = computeTeamStats(playedMatches);
+  const recentEncounters = buildEncounterSummaries(
+    recentMatchRows.filter(
+      (m): m is typeof m & { result: NonNullable<typeof m.result> } =>
+        m.result != null,
+    ),
+    5,
+  ).map((e) => ({
     ...e,
     playedAt: e.playedAt.toISOString(),
     games: e.games.map((g) => ({ ...g, playedAt: g.playedAt.toISOString() })),
@@ -67,7 +73,7 @@ export default async function DashboardPage() {
 
         <Card title="Side win rate" className="lg:col-span-2">
           <p className="mb-4 text-xs text-muted">
-            League games (CWL + Titans) · {stats.total} total
+            Played games (all types) · {stats.total} total
           </p>
           <div className="grid gap-6 sm:grid-cols-2">
             <SideBar
@@ -112,7 +118,7 @@ export default async function DashboardPage() {
                 <li key={e.id} className="text-sm">
                   <p className="font-medium text-foreground">{e.title}</p>
                   <p className="text-muted">
-                    {format(e.startAt, "EEE, MMM d · HH:mm")}
+                    {formatDateTime24Weekday(e.startAt)}
                   </p>
                 </li>
               ))}

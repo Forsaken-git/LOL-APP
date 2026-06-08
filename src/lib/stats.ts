@@ -12,20 +12,21 @@ export type TeamStats = {
 export function computeTeamStats(
   matches: Pick<Match, "result" | "side">[],
 ): TeamStats {
-  const wins = matches.filter((m) => m.result === "WIN").length;
-  const losses = matches.length - wins;
+  const played = matches.filter((m) => m.result != null);
+  const wins = played.filter((m) => m.result === "WIN").length;
+  const losses = played.length - wins;
 
-  const redMatches = matches.filter((m) => m.side === "RED");
-  const blueMatches = matches.filter((m) => m.side === "BLUE");
+  const redMatches = played.filter((m) => m.side === "RED");
+  const blueMatches = played.filter((m) => m.side === "BLUE");
 
   const redWins = redMatches.filter((m) => m.result === "WIN").length;
   const blueWins = blueMatches.filter((m) => m.result === "WIN").length;
 
   return {
-    total: matches.length,
+    total: played.length,
     wins,
     losses,
-    winRate: matches.length ? Math.round((wins / matches.length) * 100) : 0,
+    winRate: played.length ? Math.round((wins / played.length) * 100) : 0,
     red: {
       total: redMatches.length,
       wins: redWins,

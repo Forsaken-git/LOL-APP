@@ -1,17 +1,50 @@
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { championImageUrl } from "@/lib/champions";
+import { championDisplayName, championImageUrl } from "@/lib/champions";
+import { isDraftComplete, parseDraftEntries } from "@/lib/draft";
 
 export const dynamic = "force-dynamic";
 
 export default async function PicksBansPage() {
-  const pickBans = await prisma.pickBan.findMany({
-    include: { match: true },
+  const [matchPickBans, drafts, playedMatchesCount] = await Promise.all([
+    prisma.pickBan.findMany({
+      where: { match: { is: {} } },
+      include: { match: true },
+    }),
+    prisma.draftSession.findMany({
+      select: { pickBans: true, ourSide: true, matchId: true },
+    }),
+    prisma.match.count({
+      where: { status: "PLAYED" },
+    }),
+  ]);
+
+  const draftEntries = drafts.flatMap((d) => {
+    // Priority rule: when draft is linked to a match, count only match data.
+    if (d.matchId) return [];
+    const entries = parseDraftEntries(d.pickBans);
+    if (!isDraftComplete(entries)) return [];
+    return entries.filter((e) => e.side === d.ourSide);
   });
 
-  const pickCounts = countByChampion(pickBans.filter((p) => p.type === "PICK"));
-  const banCounts = countByChampion(pickBans.filter((p) => p.type === "BAN"));
+  const ourMatchPickBans = matchPickBans.filter((p) => p.side === p.match.side);
+
+  const pickBans = [
+    ...ourMatchPickBans.map((p) => ({ champion: p.champion, type: p.type })),
+    ...draftEntries.map((e) => ({ champion: e.champion, type: e.type })),
+  ];
+  const normalizedPickBans = pickBans.map((p) => ({
+    ...p,
+    champion: championDisplayName(p.champion),
+  }));
+
+  const pickCounts = countByChampion(
+    normalizedPickBans.filter((p) => p.type === "PICK"),
+  );
+  const banCounts = countByChampion(
+    normalizedPickBans.filter((p) => p.type === "BAN"),
+  );
 
   const topPicks = sortCounts(pickCounts).slice(0, 10);
   const topBans = sortCounts(banCounts).slice(0, 10);
@@ -20,7 +53,7 @@ export default async function PicksBansPage() {
     <div className="space-y-8">
       <PageHeader
         title="Picks & Bans"
-        description="Most picked and banned champions across all logged matches"
+        description="Most picked and banned champions from played games and upcoming drafts"
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -31,7 +64,12 @@ export default async function PicksBansPage() {
       <Card title="Raw totals">
         <p className="text-sm text-muted">
           Based on {pickBans.length} pick/ban entries from{" "}
-          {new Set(pickBans.map((p) => p.matchId)).size} matches.
+          {playedMatchesCount} played matches{" "}
+          <span className="text-faint">
+            ({new Set(ourMatchPickBans.map((p) => p.matchId)).size} matches with our pick/ban rows)
+          </span>{" "}
+          and{" "}
+          {drafts.length} drafts (our side only).
         </p>
       </Card>
     </div>

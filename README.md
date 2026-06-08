@@ -10,7 +10,7 @@ A shareable web app for your League of Legends team: calendar, match stats, pick
 - **Picks & Bans** — Most picked/banned champions
 - **Players** — Roster with champion pools (official vs training)
 - **Schedule** — Weekly availability per player + team overlap overview
-- **Drafter** — Practice drafts and save them
+- **Drafts** — Plan upcoming games with guided pick/ban order; data feeds Picks & Bans stats
 - **Tierlists** — Create and edit S–D tierlists
 
 **LCU spectate collector** — capture games while spectating (no Riot API key). Riot Match-V5 auto-import is still planned.
@@ -76,7 +76,7 @@ Quick outline:
 4. Build uses `vercel.json`: `prisma db push` then `next build`.
 5. Seed production once: `npm run db:seed` (with production `DATABASE_URL` in your shell).
 
-### Customizing demo data
+### Customizing seed data
 
 Edit `prisma/seed.ts` with your real player names, leagues, and matches, then run:
 

@@ -93,13 +93,18 @@ export function matchWhereForCompetition(
   if (id === "titans") leagueVariants.push("Titans", "Titans League");
   if (id === "scrim") leagueVariants.push("Scrim", "Scrims", "SCRIM");
 
+  if (c.gameType === "SCRIM") {
+    return {
+      OR: [
+        { league: { in: leagueVariants } },
+        { gameType: "SCRIM" },
+        { gameType: "TRAINING" },
+      ],
+    };
+  }
+
   return {
-    OR: [
-      { league: { in: leagueVariants } },
-      ...(c.gameType === "SCRIM"
-        ? [{ gameType: "SCRIM" as const }, { gameType: "TRAINING" as const }]
-        : [{ gameType: c.gameType }]),
-    ],
+    AND: [{ league: { in: leagueVariants } }, { gameType: c.gameType }],
   };
 }
 

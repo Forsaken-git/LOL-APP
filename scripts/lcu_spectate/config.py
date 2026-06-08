@@ -19,6 +19,7 @@ class RosterEntry:
     display_name: str
     summoner_name: str | None = None
     team_role: str | None = None
+    member_role: str | None = None
 
 
 @dataclass
@@ -33,6 +34,10 @@ class CollectorConfig:
     export_dir: str = "data/exports"
     push_on_complete: bool = True
     poll_interval_sec: float = 2.0
+    eog_poll_interval_sec: float = 0.5
+    post_game_timeout_sec: float = 120.0
+    save_jsonl_backup: bool = True
+    capture_champ_select_draft: bool = True
     ddragon_version: str = "14.24.1"
     source: str = "lcu-spectate"
 
@@ -62,6 +67,7 @@ class CollectorConfig:
                 display_name=str(entry.get("displayName") or entry.get("display_name") or key),
                 summoner_name=entry.get("summonerName") or entry.get("summoner_name"),
                 team_role=entry.get("teamRole") or entry.get("team_role"),
+                member_role=entry.get("memberRole") or entry.get("member_role"),
             )
 
         summoners = raw.get("teamSummoners") or raw.get("team_summoners") or []
@@ -84,6 +90,21 @@ class CollectorConfig:
             push_on_complete=bool(raw.get("pushOnComplete", raw.get("push_on_complete", True))),
             poll_interval_sec=float(
                 raw.get("pollIntervalSec") or raw.get("poll_interval_sec") or 2.0
+            ),
+            eog_poll_interval_sec=float(
+                raw.get("eogPollIntervalSec") or raw.get("eog_poll_interval_sec") or 0.5
+            ),
+            post_game_timeout_sec=float(
+                raw.get("postGameTimeoutSec") or raw.get("post_game_timeout_sec") or 120.0
+            ),
+            save_jsonl_backup=bool(
+                raw.get("saveJsonlBackup", raw.get("save_jsonl_backup", True))
+            ),
+            capture_champ_select_draft=bool(
+                raw.get(
+                    "captureChampSelectDraft",
+                    raw.get("capture_champ_select_draft", True),
+                )
             ),
             ddragon_version=str(
                 raw.get("ddragonVersion") or raw.get("ddragon_version") or "14.24.1"

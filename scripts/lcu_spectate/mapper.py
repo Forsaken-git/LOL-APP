@@ -7,6 +7,7 @@ from typing import Any
 
 from .champions import champion_name, load_champion_map
 from .config import CollectorConfig, RosterEntry
+from .eog_extract import extract_participant, riot_id
 
 TEAM_BLUE = 100
 TEAM_RED = 200
@@ -24,6 +25,8 @@ def _pick_mvp(participants: list[dict[str, Any]]) -> str | None:
     best_id: str | None = None
     best_score = -1.0
     for p in participants:
+        if p.get("opponent"):
+            continue
         k = p.get("kills") or 0
         d = p.get("deaths") or 0
         a = p.get("assists") or 0
@@ -34,9 +37,27 @@ def _pick_mvp(participants: list[dict[str, Any]]) -> str | None:
     return best_id
 
 
+def _find_our_team(teams: list[Any], config: CollectorConfig) -> dict[str, Any] | None:
+    for team in teams:
+        if not isinstance(team, dict):
+            continue
+        hits = 0
+        for pl in team.get("players") or []:
+            if not isinstance(pl, dict):
+                continue
+            name = riot_id(pl) or str(pl.get("summonerName") or "")
+            if config.is_team_summoner(name):
+                hits += 1
+        if hits > 0:
+            return team
+    return None
+
+
 def build_from_eog(
     eog: dict[str, Any],
     config: CollectorConfig,
+    *,
+    pick_bans_override: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     load_champion_map(config.ddragon_version)
 
@@ -44,71 +65,66 @@ def build_from_eog(
     platform = config.platform_id
     external_id = f"{platform}_{game_id}" if game_id else None
 
-    teams = eog.get("teams") or []
-    our_team_id: int | None = None
-    enemy_names: list[str] = []
+    teams = [t for t in (eog.get("teams") or []) if isinstance(t, dict)]
+    our_team = _find_our_team(teams, config)
+    if our_team is None and teams:
+        our_team = teams[0]
 
-    for team in teams:
-        if not isinstance(team, dict):
-            continue
-        players = team.get("players") or []
-        team_ids_on_roster = 0
-        for pl in players:
-            if not isinstance(pl, dict):
-                continue
-            name = str(pl.get("summonerName") or "")
-            if config.is_team_summoner(name):
-                team_ids_on_roster += 1
-        if team_ids_on_roster > 0:
-            our_team_id = int(team.get("teamId") or 0) or None
-        else:
-            for pl in players:
-                if isinstance(pl, dict) and pl.get("summonerName"):
-                    enemy_names.append(str(pl["summonerName"]))
+    enemy_team = None
+    if our_team:
+        our_id = int(our_team.get("teamId") or TEAM_BLUE)
+        enemy_team = next(
+            (t for t in teams if int(t.get("teamId") or 0) != our_id),
+            None,
+        )
 
-    if our_team_id is None and teams:
-        # Spectator EOG may not flag isPlayerTeam — use first team with any roster hit
-        for team in teams:
-            if not isinstance(team, dict):
-                continue
-            for pl in team.get("players") or []:
-                if isinstance(pl, dict) and config.is_team_summoner(
-                    str(pl.get("summonerName") or "")
-                ):
-                    our_team_id = int(team.get("teamId") or TEAM_BLUE)
-                    break
-
-    our_team = next(
-        (t for t in teams if isinstance(t, dict) and t.get("teamId") == our_team_id),
-        None,
-    )
+    our_team_id = int(our_team.get("teamId") or TEAM_BLUE) if our_team else TEAM_BLUE
     won = bool(our_team.get("isWinningTeam")) if our_team else False
-    side = "BLUE" if our_team_id == TEAM_BLUE else "RED"
+    our_side = "BLUE" if our_team_id == TEAM_BLUE else "RED"
+    enemy_side = "RED" if our_side == "BLUE" else "BLUE"
 
     participants: list[dict[str, Any]] = []
     players_out: list[dict[str, Any]] = []
     seen_roster: set[str] = set()
+    enemy_names: list[str] = []
 
-    if our_team:
-        for pl in our_team.get("players") or []:
+    def add_team_players(team: dict[str, Any] | None, side: str, opponent: bool) -> None:
+        if not team:
+            return
+        for pl in team.get("players") or []:
             if not isinstance(pl, dict):
                 continue
-            summoner = str(pl.get("summonerName") or "")
-            if not config.is_team_summoner(summoner):
-                continue
+            summoner = riot_id(pl) or str(pl.get("summonerName") or "")
+            if opponent:
+                if summoner:
+                    enemy_names.append(summoner)
+
             cid = int(pl.get("championId") or 0)
             champ = champion_name(cid, config.ddragon_version)
-            stats = pl.get("stats") or {}
-            k, d, a = _stats_kda(stats)
+            if pl.get("championName"):
+                champ = str(pl["championName"])
 
-            roster_entry = config.roster_for_summoner(summoner)
-            part = _participant_dict(summoner, champ, k, d, a, roster_entry)
+            part = extract_participant(
+                pl, side=side, opponent=opponent, champion_name=champ
+            )
+            roster_entry = None if opponent else config.roster_for_summoner(summoner)
+            if roster_entry:
+                part["playerExternalId"] = roster_entry.external_id
+                role = (roster_entry.team_role or "").upper()
+                if role and role != "FILL":
+                    part["teamRole"] = roster_entry.team_role
+                if roster_entry.external_id not in seen_roster:
+                    seen_roster.add(roster_entry.external_id)
+                    players_out.append(_player_dict(roster_entry, summoner))
             participants.append(part)
-            if roster_entry and roster_entry.external_id not in seen_roster:
-                seen_roster.add(roster_entry.external_id)
-                players_out.append(_player_dict(roster_entry, summoner))
 
-    pick_bans = _pick_bans_from_teams(teams, config.ddragon_version)
+    add_team_players(our_team, our_side, False)
+    add_team_players(enemy_team, enemy_side, True)
+
+    if pick_bans_override:
+        pick_bans = pick_bans_override
+    else:
+        pick_bans = _pick_bans_from_teams(teams, config.ddragon_version)
 
     game_length = int(eog.get("gameLength") or 0)
     played_at = datetime.now(timezone.utc).isoformat()
@@ -120,8 +136,9 @@ def build_from_eog(
         "league": config.league,
         "opponent": opponent,
         "result": "WIN" if won else "LOSS",
-        "side": side,
+        "side": our_side,
         "gameType": config.game_type,
+        "gameDurationSec": game_length or None,
         "source": config.source,
         "notes": f"LCU spectate · {game_length}s",
         "participants": participants,
@@ -167,16 +184,46 @@ def build_from_live_snapshot(
         scores = pl.get("scores") or {}
         champ = str(pl.get("championName") or "Unknown")
         roster_entry = config.roster_for_summoner(summoner)
-        participants.append(
-            _participant_dict(
-                summoner,
-                champ,
-                int(scores.get("kills", 0)),
-                int(scores.get("deaths", 0)),
-                int(scores.get("assists", 0)),
-                roster_entry,
-            )
+        part = _participant_dict(
+            summoner,
+            champ,
+            int(scores.get("kills", 0)),
+            int(scores.get("deaths", 0)),
+            int(scores.get("assists", 0)),
+            roster_entry,
         )
+        cs = scores.get("creepScore")
+        if isinstance(cs, (int, float)):
+            part["cs"] = int(cs)
+        items = []
+        for item in pl.get("items") or []:
+            if isinstance(item, dict):
+                iid = item.get("itemID") or item.get("itemId")
+                if isinstance(iid, int) and iid > 0:
+                    items.append(iid)
+        spells = pl.get("summonerSpells") or {}
+        s1 = spells.get("summonerSpellOne") or {}
+        s2 = spells.get("summonerSpellTwo") or {}
+        build: dict[str, Any] = {}
+        if items:
+            build["itemIds"] = items
+        if isinstance(s1.get("rawDisplayName"), str):
+            pass
+        if s1.get("rawDescription"):
+            pass
+        spell_ids: list[int] = []
+        for key in ("summonerSpellOne", "summonerSpellTwo"):
+            sp = spells.get(key) or {}
+            sid = sp.get("id") or sp.get("spellId")
+            if isinstance(sid, int) and sid > 0:
+                spell_ids.append(sid)
+        if len(spell_ids) >= 1:
+            build["spell1Id"] = spell_ids[0]
+        if len(spell_ids) >= 2:
+            build["spell2Id"] = spell_ids[1]
+        if build:
+            part["build"] = build
+        participants.append(part)
         if roster_entry and roster_entry.external_id not in seen:
             seen.add(roster_entry.external_id)
             players_out.append(_player_dict(roster_entry, summoner))
@@ -200,7 +247,7 @@ def build_from_live_snapshot(
                 "side": side,
                 "gameType": config.game_type,
                 "source": config.source,
-                "notes": "LCU spectate (live snapshot — verify result)",
+                "notes": "LCU spectate (live snapshot — verify W/L)",
                 "participants": participants,
             }
         ],
@@ -239,6 +286,8 @@ def _player_dict(roster: RosterEntry, summoner: str) -> dict[str, Any]:
         p["summonerName"] = roster.summoner_name or summoner
     if roster.team_role:
         p["teamRole"] = roster.team_role
+    if roster.member_role:
+        p["memberRole"] = roster.member_role
     return p
 
 

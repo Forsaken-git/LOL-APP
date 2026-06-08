@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { formatTime24 } from "@/lib/datetime";
 import { Trash2 } from "lucide-react";
 import {
   eventTypeLabel,
@@ -74,7 +75,7 @@ export function DayEventsList({
                     {e.title}
                   </span>
                   <span className="shrink-0 tabular-nums text-xs text-muted">
-                    {format(parseISO(e.startAt), "HH:mm")}
+                    {formatTime24(parseISO(e.startAt))}
                   </span>
                   <span className="hidden shrink-0 text-xs text-faint sm:inline">
                     {eventTypeLabel(e.type)}

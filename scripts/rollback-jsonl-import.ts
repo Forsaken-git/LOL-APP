@@ -24,6 +24,20 @@ async function main() {
     console.log(`Removed: ${m.source} · ${m.league} vs ${m.opponent ?? "?"}`);
   }
 
+  const orphans = await prisma.player.findMany({
+    where: {
+      externalId: { startsWith: "opponent:" },
+      participations: { none: {} },
+    },
+    select: { id: true, displayName: true, externalId: true },
+  });
+  if (orphans.length > 0) {
+    await prisma.player.deleteMany({
+      where: { id: { in: orphans.map((p) => p.id) } },
+    });
+    console.log(`Removed ${orphans.length} opponent placeholder player(s).`);
+  }
+
   console.log(`\nRemoved ${imported.length} imported match(es).`);
   console.log(
     "LCU JSONL folders (CWL/, Scrims/, etc.) are unchanged on disk — only DB rows were cleared.",

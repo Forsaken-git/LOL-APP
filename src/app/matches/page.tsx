@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { buildMatchScoreboard } from "@/lib/match-scoreboard";
 import { isCompetitionId, matchWhereForCompetition } from "@/lib/competitions";
@@ -40,6 +41,7 @@ export default async function MatchesPage({
     league: m.league,
     opponent: m.opponent,
     result: m.result,
+    status: m.status,
     side: m.side,
     gameType: m.gameType,
     scoreboard: buildMatchScoreboard(m),
@@ -51,9 +53,14 @@ export default async function MatchesPage({
         title="Matches"
         description="Full history — filter by competition"
       >
-        <Suspense fallback={<span className="text-xs text-muted">Loading…</span>}>
-          <MatchesFilter current={filterCurrent} />
-        </Suspense>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/matches/new" className="btn-primary text-sm">
+            Add match
+          </Link>
+          <Suspense fallback={<span className="text-xs text-muted">Loading…</span>}>
+            <MatchesFilter current={filterCurrent} />
+          </Suspense>
+        </div>
       </PageHeader>
 
       {listItems.length === 0 ? (

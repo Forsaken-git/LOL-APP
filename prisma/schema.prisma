@@ -39,6 +39,17 @@ enum MatchResult {
   LOSS
 }
 
+enum MatchStatus {
+  SCHEDULED
+  PLAYED
+}
+
+enum DraftStatus {
+  PLANNING
+  READY
+  PLAYED
+}
+
 enum Side {
   RED
   BLUE
@@ -78,6 +89,7 @@ model Player {
   participations MatchParticipant[]
   mvpMatches     Match[]              @relation("MatchMvp")
   availability   AvailabilitySlot[]
+  tierlists      Tierlist[]
   updatedAt      DateTime             @updatedAt @default(now())
 }
 
@@ -100,15 +112,18 @@ model Match {
   playedAt       DateTime
   league         String
   opponent       String?
-  result         MatchResult
+  status         MatchStatus          @default(PLAYED)
+  result         MatchResult?
   side           Side
   gameType       GameType             @default(OFFICIAL)
+  gameDurationSec Int?
   notes          String?
   source         String?
   mvpId          String?
   mvp            Player?              @relation("MatchMvp", fields: [mvpId], references: [id])
   participants   MatchParticipant[]
   pickBans       PickBan[]
+  draft          DraftSession?
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt @default(now())
 }
@@ -121,9 +136,17 @@ model MatchParticipant {
   player   Player  @relation(fields: [playerId], references: [id])
   champion String
   side     Side?
+  /** In-game lane from match data: TOP, JUNGLE, MIDDLE, BOTTOM, UTILITY */
+  position String?
   kills    Int?
   deaths   Int?
   assists  Int?
+  cs          Int?
+  damage      Int?
+  goldEarned  Int?
+  visionScore Int?
+  /** JSON: itemIds, spell1Id, spell2Id, perks — see ParticipantBuild in ingest types */
+  buildJson   String?
 }
 
 model PickBan {
@@ -152,19 +175,29 @@ model Tierlist {
   name      String
   category  String   @default("champions")
   rows      String
+  playerId  String?
+  player    Player?  @relation(fields: [playerId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([playerId])
 }
 
 model DraftSession {
-  id        String   @id @default(cuid())
-  name      String   @default("Practice Draft")
-  bluePicks String   @default("[]")
-  blueBans  String   @default("[]")
-  redPicks  String   @default("[]")
-  redBans   String   @default("[]")
-  notes     String?
-  createdAt DateTime @default(now())
+  id          String       @id @default(cuid())
+  title       String       @default("Untitled draft")
+  opponent    String?
+  league      String       @default("Scrim")
+  scheduledAt DateTime     @default(now())
+  ourSide     Side         @default(BLUE)
+  status      DraftStatus  @default(PLANNING)
+  /** Ordered pick/ban entries: [{ champion, type, side, order }] */
+  pickBans    String       @default("[]")
+  notes       String?
+  matchId     String?      @unique
+  match       Match?       @relation(fields: [matchId], references: [id], onDelete: SetNull)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt @default(now())
 }
 
 model IngestRun {

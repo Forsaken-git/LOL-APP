@@ -2,9 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
+import type { EventType } from "@prisma/client";
 import { COMPETITIONS } from "@/lib/competitions";
 import { MARKER_STYLES, type CalendarEvent, type MarkerKind } from "@/lib/calendar-markers";
-import { parseLocalDateTime } from "@/lib/datetime";
+import {
+  formatTime24,
+  normalizeTime24Input,
+  parseLocalDateTime,
+  TIME_24_PATTERN,
+} from "@/lib/datetime";
 
 const EVENT_OPTIONS = COMPETITIONS.map((c) => ({
   type: c.eventType,
@@ -12,7 +18,7 @@ const EVENT_OPTIONS = COMPETITIONS.map((c) => ({
   label: c.label,
 }));
 
-function defaultTypeForEvent(event: CalendarEvent): string {
+function defaultTypeForEvent(event: CalendarEvent): EventType {
   const hit = EVENT_OPTIONS.find((o) => o.type === event.type);
   if (hit) return hit.type;
   return COMPETITIONS[0].eventType;
@@ -44,7 +50,7 @@ export function EventForm({
       setTitle(event.title);
       setType(defaultTypeForEvent(event));
       setDate(format(start, "yyyy-MM-dd"));
-      setTime(format(start, "HH:mm"));
+      setTime(formatTime24(start));
       setError("");
       return;
     }
@@ -139,12 +145,20 @@ export function EventForm({
         <label className="block text-xs text-muted">
           Time
           <input
-            type="time"
+            type="text"
             value={time}
             onChange={(e) => setTime(e.target.value)}
+            onBlur={(e) => {
+              const normalized = normalizeTime24Input(e.target.value);
+              if (normalized) setTime(normalized);
+            }}
             required
+            inputMode="numeric"
+            pattern={TIME_24_PATTERN.source}
+            placeholder="18:00"
             className="mt-1 block"
           />
+          <span className="mt-1 block text-[10px] text-faint">24h (HH:mm)</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {isEdit && onCancel && (

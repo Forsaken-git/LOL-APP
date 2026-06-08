@@ -1,4 +1,12 @@
 import type { LoLRole, Prisma } from "@prisma/client";
+import {
+  laneIndexFromPosition,
+  normalizeParticipantBuild,
+  scoreboardRoleForLaneIndex,
+} from "@/lib/build-normalize";
+import { championDisplayName } from "@/lib/champions";
+import { validateIngestMatch } from "@/lib/ingest/collector-validate";
+import { ensureOurTeamPickBans } from "@/lib/matches/sync-our-pick-bans";
 import { prisma } from "@/lib/prisma";
 import { isTeamRosterMember, rosterEntryFor } from "@/lib/team-roster";
 import type {
@@ -202,6 +210,51 @@ async function resolvePlayerId(
   throw new Error("participant needs playerExternalId, displayName, or summonerName");
 }
 
+async function resolveOpponentPlayerId(
+  match: IngestMatch,
+  part: IngestParticipant,
+  cache: Map<string, string>,
+): Promise<string> {
+  const team = (match.opponent ?? "opponent").trim();
+  const label =
+    part.displayName ??
+    part.summonerName?.split("#")[0] ??
+    part.champion;
+  const externalId =
+    part.playerExternalId ??
+    `opponent:${match.externalId ?? team}:${label.toLowerCase().replace(/\s+/g, "-")}`;
+
+  const cacheKey = `ext:${externalId}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
+  const existing = await prisma.player.findUnique({ where: { externalId } });
+  const row = existing
+    ? await prisma.player.update({
+        where: { id: existing.id },
+        data: {
+          displayName: label,
+          summonerName: part.summonerName ?? existing.summonerName,
+          teamRole: part.teamRole ?? existing.teamRole,
+          active: false,
+        },
+      })
+    : await prisma.player.create({
+        data: {
+          externalId,
+          displayName: label,
+          summonerName: part.summonerName ?? null,
+          teamRole: part.teamRole ?? "FILL",
+          memberRole: "PLAYER",
+          active: false,
+        },
+      });
+
+  cache.set(cacheKey, row.id);
+  cache.set(`name:${label.toLowerCase()}`, row.id);
+  return row.id;
+}
+
 async function resolveMvpId(
   match: IngestMatch,
   cache: Map<string, string>,
@@ -236,9 +289,11 @@ async function upsertMatch(
     playedAt: new Date(match.playedAt),
     league: match.league,
     opponent: match.opponent ?? null,
+    status: "PLAYED" as const,
     result: match.result,
     side: match.side,
     gameType: match.gameType ?? "OFFICIAL",
+    gameDurationSec: match.gameDurationSec ?? null,
     notes: match.notes ?? null,
     source: match.source ?? null,
     mvpId,
@@ -282,28 +337,57 @@ async function upsertMatch(
   }
 
   for (const part of match.participants ?? []) {
-    if (!isTeamRosterMember(part)) continue;
+    const isOpponent = part.opponent === true;
+    if (!isOpponent && !isTeamRosterMember(part)) continue;
 
     let playerId: string;
     try {
-      playerId = await resolvePlayerId(cache, part);
+      playerId = isOpponent
+        ? await resolveOpponentPlayerId(match, part, cache)
+        : await resolvePlayerId(cache, part);
     } catch (e) {
       if (e instanceof Error && e.message.startsWith("not_on_roster:")) continue;
       throw e;
     }
 
+    const laneIndex = laneIndexFromPosition(part.position);
     await prisma.matchParticipant.create({
       data: {
         matchId: row.id,
         playerId,
-        champion: part.champion,
+        champion: championDisplayName(part.champion),
         side: part.side ?? null,
+        position: part.position ?? null,
         kills: part.kills ?? null,
         deaths: part.deaths ?? null,
         assists: part.assists ?? null,
+        cs: part.cs ?? null,
+        damage: part.damage ?? null,
+        goldEarned: part.goldEarned ?? null,
+        visionScore: part.visionScore ?? null,
+        buildJson: part.build
+          ? JSON.stringify(
+              normalizeParticipantBuild(part.build, {
+                position: part.position,
+                teamRole: part.teamRole,
+                laneIndex,
+                scoreboardRole: scoreboardRoleForLaneIndex(laneIndex),
+              }) ?? part.build,
+            )
+          : null,
       },
     });
   }
+
+  const validation = validateIngestMatch(match);
+  if (!validation.ok) {
+    console.warn(
+      `[ingest] incomplete collector data for ${match.externalId ?? row.id}:`,
+      validation.warnings.join("; "),
+    );
+  }
+
+  await ensureOurTeamPickBans(row.id);
 
   return { created, id: row.id };
 }

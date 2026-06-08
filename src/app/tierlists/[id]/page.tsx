@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { prisma } from "@/lib/prisma";
-import { Card } from "@/components/ui/Card";
+import { getChampionRoleData } from "@/lib/champion-roles";
+import { parseTierlistRows } from "@/lib/tierlist";
+import { sortPlayersByRoster } from "@/lib/player-sort";
+import { getTierlistById, listActivePlayers } from "@/lib/tierlist-db";
 import { TierlistEditor } from "@/components/tierlists/TierlistEditor";
 
 export const dynamic = "force-dynamic";
@@ -12,26 +13,23 @@ export default async function TierlistDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const tierlist = await prisma.tierlist.findUnique({ where: { id } });
+  const [tierlist, championRoleData, players] = await Promise.all([
+    getTierlistById(id),
+    getChampionRoleData(),
+    listActivePlayers(),
+  ]);
   if (!tierlist) notFound();
 
-  const parsed = JSON.parse(tierlist.rows) as Record<string, string[]>;
-  const rows = {
-    S: parsed.S ?? [],
-    A: parsed.A ?? [],
-    B: parsed.B ?? [],
-    C: parsed.C ?? [],
-    D: parsed.D ?? [],
-  };
+  const initialData = parseTierlistRows(tierlist.rows);
 
   return (
-    <div className="space-y-6">
-      <Link href="/tierlists" className="link-accent inline-block">
-        ← Tierlists
-      </Link>
-      <Card>
-        <TierlistEditor id={tierlist.id} name={tierlist.name} initialRows={rows} />
-      </Card>
-    </div>
+    <TierlistEditor
+      id={tierlist.id}
+      name={tierlist.name}
+      initialData={initialData}
+      initialPlayerId={tierlist.playerId}
+      players={sortPlayersByRoster(players)}
+      championRoleData={championRoleData}
+    />
   );
 }

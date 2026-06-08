@@ -39,7 +39,7 @@ Re-sending the same `externalId` replaces pick/bans and participants for that ma
 
 ## Payload shape
 
-See `data/example-export.json` for a full example.
+See `data/example-export.json` for a full example. For KDA, CS, vision, items, runes, and spells from LCU, see [COLLECTOR-DATA.md](./COLLECTOR-DATA.md).
 
 ```json
 {
