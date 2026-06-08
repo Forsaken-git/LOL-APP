@@ -31,15 +31,20 @@ SQLite needs disk that survives redeploys.
 
 ---
 
-## Step 3 — Environment variables
+## Step 3 — Environment variables (required)
 
-In the service → **Variables**:
+In the service → **Variables** tab → **New variable**:
 
 | Name | Value |
 |------|--------|
 | `DATABASE_URL` | `file:/data/renim.db` |
 | `INGEST_API_KEY` | Long random secret (see below) |
-| `NODE_ENV` | `production` (Railway often sets this automatically) |
+
+Click **Add** for each, then **Deploy** (or redeploy) so the running container picks them up.
+
+If the app crashes with `Environment variable not found: DATABASE_URL`, this step was skipped or the deploy happened before variables were saved.
+
+`NODE_ENV=production` is usually set by Railway automatically.
 
 Generate a key (PowerShell):
 
