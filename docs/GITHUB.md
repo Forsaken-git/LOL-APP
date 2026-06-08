@@ -75,31 +75,41 @@ Prisma in this project uses `provider = "sqlite"`, which works with Turso.
 
    | Name | Value |
    |------|--------|
-   | `DATABASE_URL` | Turso `libsql://...` URL |
+   | `TURSO_DATABASE_URL` | Turso `libsql://...` URL |
+   | `TURSO_AUTH_TOKEN` | Turso auth token (from Turso dashboard → database → Connect) |
+   | `DATABASE_URL` | `file:./dev.db` (dummy — Prisma CLI requires `file:`; runtime uses Turso via adapter) |
    | `INGEST_API_KEY` | Long random secret (e.g. from `openssl rand -hex 32`) |
 
-4. **Build command** (override if needed):
+   Do **not** put `libsql://` in `DATABASE_URL` — `prisma db push` on Vercel will fail with error P1012.
 
-   ```bash
-   npx prisma db push && npm run build
-   ```
+4. Deploy. Build runs `npm run build` only (schema is applied separately — see 2c).
 
-5. Deploy. Open the URL Vercel gives you.
+### 2c — Create tables on Turso (one time)
 
-### 2c — Seed production once
-
-From your machine, pointing at the **production** database:
+Prisma cannot run `db push` directly against Turso. Generate SQL locally, then apply with the Turso CLI:
 
 ```powershell
-$env:DATABASE_URL="libsql://..."   # Turso URL
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/turso-init.sql
+turso db shell YOUR_DB_NAME < prisma/turso-init.sql
+```
+
+Replace `YOUR_DB_NAME` with your Turso database name.
+
+### 2d — Seed production once
+
+From your machine, with Turso credentials:
+
+```powershell
+$env:TURSO_DATABASE_URL="libsql://..."
+$env:TURSO_AUTH_TOKEN="your-turso-token"
+$env:DATABASE_URL="file:./prisma/dev.db"
 $env:INGEST_API_KEY="your-production-key"
-npx prisma db push
 npm run db:seed
 ```
 
 Copy `data/team-roster.json` content into production by running ingest with your JSON, or edit seed / use `npm run ingest -- file.json --local` against prod `DATABASE_URL`.
 
-### 2d — Ingest from your PC to the live hub
+### 2e — Ingest from your PC to the live hub
 
 ```powershell
 $env:HUB_URL="https://your-app.vercel.app"
