@@ -6,13 +6,14 @@ import {
 } from "@/lib/build-normalize";
 import { prisma } from "@/lib/prisma";
 import { ensureOurTeamPickBans } from "@/lib/matches/sync-our-pick-bans";
+import type { ParticipantBuild } from "@/lib/ingest/types";
 import type { ParsedManualMatchBody, ParsedParticipantRow } from "./parse-body";
 
 type BuildLike = {
   itemIds?: unknown;
   spell1Id?: unknown;
   spell2Id?: unknown;
-  perks?: unknown;
+  perks?: ParticipantBuild["perks"];
 };
 
 function parseBuildJson(raw: string | null | undefined): BuildLike | null {
@@ -64,7 +65,7 @@ function participantData(
   playerId: string,
   row: ParsedParticipantRow,
   side: Side,
-  preservedPerks?: unknown,
+  preservedPerks?: ParticipantBuild["perks"],
 ) {
   const laneIndex = laneIndexFromPosition(row.position);
   const buildCtx = {
@@ -120,7 +121,7 @@ async function saveManualMatch(
 ): Promise<{ id: string }> {
   const enemySide: Side = input.side === "BLUE" ? "RED" : "BLUE";
   const matchKey = matchId ?? `${input.opponent}-${input.playedAt.getTime()}`;
-  const preservedPerksBySlot = new Map<string, unknown>();
+  const preservedPerksBySlot = new Map<string, ParticipantBuild["perks"]>();
 
   const ourPlayerIds = input.ourParticipants.map((p) => p.playerId!);
   const roster = await prisma.player.findMany({
@@ -167,6 +168,7 @@ async function saveManualMatch(
       select: { side: true, position: true, buildJson: true },
     });
     for (const part of existing) {
+      if (!part.side) continue;
       const parsed = parseBuildJson(part.buildJson);
       if (parsed?.perks) {
         preservedPerksBySlot.set(slotKey(part.side, part.position), parsed.perks);

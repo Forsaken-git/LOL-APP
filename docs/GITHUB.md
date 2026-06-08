@@ -47,7 +47,7 @@ git add .
 git commit -m "Renim A. team hub — initial publish"
 
 git branch -M main
-git remote add origin https://github.com/forsaken/LOL_APP.git
+git remote add origin https://github.com/Forsaken-git/Renim.A.git
 git push -u origin main
 ```
 
