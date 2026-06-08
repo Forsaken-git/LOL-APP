@@ -66,15 +66,16 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Publish on GitHub + live URL
 
-Step-by-step guide (repo, Turso, Vercel, ingest keys, privacy): **[docs/GITHUB.md](docs/GITHUB.md)**.
+**Recommended:** deploy on [Railway](https://railway.com) with a SQLite file on a persistent volume — **[docs/RAILWAY.md](docs/RAILWAY.md)**.
 
 Quick outline:
 
-1. Push this repo to GitHub (see guide — no secrets or `dev.db` in Git).
-2. Copy `.env.example` → `.env` locally; copy `data/team-roster.example.json` → `data/team-roster.json` and edit.
-3. Import the repo on [Vercel](https://vercel.com), set `DATABASE_URL` (e.g. [Turso](https://turso.tech)) and `INGEST_API_KEY`.
-4. Build uses `vercel.json`: `prisma db push` then `next build`.
-5. Seed production once: `npm run db:seed` (with production `DATABASE_URL` in your shell).
+1. Push this repo to GitHub.
+2. Copy `.env.example` → `.env` locally; create `data/team-roster.json` with your roster.
+3. Create a Railway project from the repo, add a volume at `/data`, set `DATABASE_URL=file:/data/renim.db` and `INGEST_API_KEY`.
+4. Seed once: `railway run npm run db:seed`.
+
+Vercel + Turso (alternative): **[docs/GITHUB.md](docs/GITHUB.md)**.
 
 ### Customizing seed data
 
