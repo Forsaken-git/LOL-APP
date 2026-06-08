@@ -4,6 +4,7 @@ import type {
   MatchResult,
   Side,
 } from "@prisma/client";
+import { normalizeGameType } from "@/lib/ingest/normalize-game-type";
 import type {
   IngestEvent,
   IngestMatch,
@@ -53,13 +54,6 @@ function normalizeSide(value: unknown): Side | null {
   if (u === "BLUE" || u === "B" || u === "100") return "BLUE";
   if (u === "RED" || u === "R" || u === "200") return "RED";
   return null;
-}
-
-function normalizeGameType(value: unknown, league?: string): GameType {
-  const text = `${typeof value === "string" ? value : ""} ${league ?? ""}`.toLowerCase();
-  if (text.includes("scrim") || text.includes("practice")) return "SCRIM";
-  if (text.includes("train")) return "TRAINING";
-  return "OFFICIAL";
 }
 
 function normalizeEventType(value: unknown, title?: string): EventType {

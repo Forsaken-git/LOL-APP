@@ -303,6 +303,8 @@ class SpectateWatcher:
         push: bool | None = None,
     ) -> None:
         game_id = eog.get("gameId") or self._last_game_id
+        if game_id:
+            self._last_game_id = game_id
         external_key = f"{self.config.platform_id}_{game_id}" if game_id else None
         if external_key and external_key in self._captured_ids:
             self._reset_after_capture(failed=False)

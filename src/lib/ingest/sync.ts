@@ -6,6 +6,7 @@ import {
 } from "@/lib/build-normalize";
 import { championDisplayName } from "@/lib/champions";
 import { validateIngestMatch } from "@/lib/ingest/collector-validate";
+import { normalizeGameType } from "@/lib/ingest/normalize-game-type";
 import { ensureOurTeamPickBans } from "@/lib/matches/sync-our-pick-bans";
 import { dedupeActivePlayers } from "@/lib/player-dedupe";
 import { prisma } from "@/lib/prisma";
@@ -360,7 +361,7 @@ async function upsertMatch(
     status: "PLAYED" as const,
     result: match.result,
     side: match.side,
-    gameType: match.gameType ?? "OFFICIAL",
+    gameType: normalizeGameType(match.gameType, match.league),
     gameDurationSec: match.gameDurationSec ?? null,
     notes: match.notes ?? null,
     source: match.source ?? null,
