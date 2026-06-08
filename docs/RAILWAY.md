@@ -42,6 +42,8 @@ In the service → **Variables** tab → **New variable**:
 
 Click **Add** for each, then **Deploy** (or redeploy) so the running container picks them up.
 
+**Remove any old Turso URL** (`libsql://...`) from `DATABASE_URL` — that was for Vercel, not Railway. Prisma on Railway only accepts `file:` URLs.
+
 If the app crashes with `Environment variable not found: DATABASE_URL`, this step was skipped or the deploy happened before variables were saved.
 
 `NODE_ENV=production` is usually set by Railway automatically.
@@ -58,24 +60,40 @@ Generate a key (PowerShell):
 
 1. Railway deploys automatically when you push to `main`.
 2. On each start, the app runs `prisma db push` then `next start` (see `railway.toml`).
-3. Open the **public URL** from Railway → **Settings → Networking → Generate Domain**.
+3. **Generate a public domain** (required — do not use an IP address):
+   - Service → **Settings** → **Networking** → **Generate Domain**
+   - Open `https://your-app-xxxx.up.railway.app` in your browser
+   - Raw IPs shown in Railway are internal and will not load the site
 
 ---
 
-## Step 5 — Seed the database (one time)
+## Step 5 — Load roster data (one time)
 
-Install the Railway CLI: [docs.railway.com/guides/cli](https://docs.railway.com/guides/cli)
+`data/team-roster.json` is **not in Git** (privacy). Railway starts with an empty database.
 
-From your PC in the project folder:
+**From your PC**, push your local roster to the live hub:
 
 ```powershell
 cd "C:\Users\libor\Desktop\LOL APP"
-railway login
-railway link          # pick your LOL-APP service
-railway run npm run db:seed
+$env:HUB_URL="https://lol-app-production.up.railway.app"
+$env:INGEST_API_KEY="same-key-as-railway-variables"
+npm run seed:remote
 ```
 
-This uses the same `DATABASE_URL` and volume as production.
+Refresh the site — **Players** should list your roster.
+
+### Push all stats (matches, picks/bans, etc.)
+
+From your PC, with `.env` containing `HUB_URL` and `INGEST_API_KEY`:
+
+```powershell
+npm run sync:remote -- --dry-run   # preview counts
+npm run sync:remote                # push roster + data/exports (LCU JSON + JSONL)
+```
+
+This fills **Overview**, **Matches**, and **Picks & Bans**. Re-run anytime after new games are saved to `data/exports/`.
+
+Single file: `npm run ingest -- data\exports\lcu-123.json`
 
 ---
 

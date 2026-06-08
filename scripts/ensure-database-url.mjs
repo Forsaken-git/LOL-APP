@@ -1,14 +1,32 @@
 /**
- * Prisma requires DATABASE_URL to exist when loading schema.prisma.
- * Railway users often forget to set it — default to the /data volume path.
+ * Prisma SQLite requires DATABASE_URL to use the file: protocol.
+ * On Railway, default to the persistent volume at /data.
  */
-if (!process.env.DATABASE_URL?.trim()) {
-  const onRailway = Boolean(
+const RAILWAY_DB = "file:/data/renim.db";
+const LOCAL_DB = "file:./prisma/dev.db";
+
+function onRailway() {
+  return Boolean(
     process.env.RAILWAY_ENVIRONMENT ??
       process.env.RAILWAY_PROJECT_ID ??
       process.env.RAILWAY_SERVICE_ID,
   );
-  process.env.DATABASE_URL = onRailway
-    ? "file:/data/renim.db"
-    : "file:./prisma/dev.db";
+}
+
+const current = process.env.DATABASE_URL?.trim() ?? "";
+const railway = onRailway();
+
+if (!current) {
+  process.env.DATABASE_URL = railway ? RAILWAY_DB : LOCAL_DB;
+} else if (railway && !current.startsWith("file:")) {
+  // Turso/libsql URLs from an old Vercel setup do not work with Prisma CLI on Railway.
+  console.warn(
+    `DATABASE_URL="${current}" is not valid for SQLite on Railway — using ${RAILWAY_DB}`,
+  );
+  process.env.DATABASE_URL = RAILWAY_DB;
+} else if (!railway && current.startsWith("libsql:")) {
+  console.warn(
+    `DATABASE_URL uses libsql:// — use ${LOCAL_DB} locally or deploy on Railway with a /data volume`,
+  );
+  process.env.DATABASE_URL = LOCAL_DB;
 }

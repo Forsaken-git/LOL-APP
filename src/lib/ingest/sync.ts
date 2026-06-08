@@ -7,6 +7,7 @@ import {
 import { championDisplayName } from "@/lib/champions";
 import { validateIngestMatch } from "@/lib/ingest/collector-validate";
 import { ensureOurTeamPickBans } from "@/lib/matches/sync-our-pick-bans";
+import { dedupeActivePlayers } from "@/lib/player-dedupe";
 import { prisma } from "@/lib/prisma";
 import { isTeamRosterMember, rosterEntryFor } from "@/lib/team-roster";
 import type {
@@ -67,6 +68,13 @@ export async function runIngest(payload: IngestPayload): Promise<IngestResult> {
 
   if (result.errors.length > 0) result.success = false;
 
+  try {
+    await dedupeActivePlayers();
+  } catch (e) {
+    result.errors.push(`dedupe: ${formatError(e)}`);
+    result.success = false;
+  }
+
   await prisma.ingestRun.create({
     data: {
       source: payload.source ?? "api",
@@ -84,18 +92,58 @@ export async function runIngest(payload: IngestPayload): Promise<IngestResult> {
   return result;
 }
 
+async function findExistingPlayerByIdentity(player: IngestPlayer) {
+  const candidates = await prisma.player.findMany({
+    where: {
+      OR: [
+        ...(player.summonerName ? [{ summonerName: player.summonerName }] : []),
+        ...(player.displayName ? [{ displayName: player.displayName }] : []),
+      ],
+    },
+  });
+
+  return (
+    candidates.find((row) => {
+      if (
+        player.summonerName &&
+        row.summonerName &&
+        summonerNamesMatch(row.summonerName, player.summonerName)
+      ) {
+        return true;
+      }
+      if (
+        player.displayName &&
+        row.displayName.trim().toLowerCase() ===
+          player.displayName.trim().toLowerCase()
+      ) {
+        return true;
+      }
+      return false;
+    }) ?? null
+  );
+}
+
 async function findExistingPlayer(player: IngestPlayer) {
   if (player.externalId) {
-    return prisma.player.findUnique({ where: { externalId: player.externalId } });
-  }
-  if (player.summonerName) {
-    return prisma.player.findFirst({
-      where: { summonerName: player.summonerName },
+    const byExt = await prisma.player.findUnique({
+      where: { externalId: player.externalId },
     });
+    if (byExt) return byExt;
   }
-  return prisma.player.findFirst({
-    where: { displayName: player.displayName },
-  });
+  return findExistingPlayerByIdentity(player);
+}
+
+function summonerNamesMatch(a: string, b: string): boolean {
+  const na = a.trim().toLowerCase();
+  const nb = b.trim().toLowerCase();
+  if (na === nb) return true;
+  const [ga, ta] = a.split("#");
+  const [gb, tb] = b.split("#");
+  if (!ta || !tb) return ga.trim().toLowerCase() === gb.trim().toLowerCase();
+  return (
+    ga.trim().toLowerCase() === gb.trim().toLowerCase() &&
+    ta.trim().toLowerCase() === tb.trim().toLowerCase()
+  );
 }
 
 async function upsertPlayer(
@@ -111,21 +159,41 @@ async function upsertPlayer(
   };
 
   if (player.externalId) {
-    const existing = await prisma.player.findUnique({
+    const byExt = await prisma.player.findUnique({
       where: { externalId: player.externalId },
     });
-    const row = await prisma.player.upsert({
-      where: { externalId: player.externalId },
-      create: data,
-      update: {
-        displayName: data.displayName,
-        summonerName: data.summonerName,
-        teamRole: data.teamRole,
-        memberRole: data.memberRole,
-        active: data.active,
-      },
-    });
-    return { id: row.id, created: !existing };
+    if (byExt) {
+      const row = await prisma.player.update({
+        where: { id: byExt.id },
+        data: {
+          displayName: data.displayName,
+          summonerName: data.summonerName,
+          teamRole: data.teamRole,
+          memberRole: data.memberRole,
+          active: data.active,
+        },
+      });
+      return { id: row.id, created: false };
+    }
+
+    const byIdentity = await findExistingPlayerByIdentity(player);
+    if (byIdentity) {
+      const row = await prisma.player.update({
+        where: { id: byIdentity.id },
+        data: {
+          displayName: data.displayName,
+          summonerName: data.summonerName ?? byIdentity.summonerName,
+          teamRole: data.teamRole,
+          memberRole: data.memberRole,
+          active: data.active,
+          externalId: player.externalId,
+        },
+      });
+      return { id: row.id, created: false };
+    }
+
+    const row = await prisma.player.create({ data });
+    return { id: row.id, created: true };
   }
 
   const existing = await findExistingPlayer(player);

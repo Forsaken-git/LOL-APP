@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { buildPlayerProfile } from "@/lib/player-stats";
 import type { PlayerProfile } from "@/lib/player-profile-types";
+import { mergeDuplicatePlayerRows } from "@/lib/player-dedupe";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import { listAllTierlists } from "@/lib/tierlist-db";
 
@@ -36,9 +37,9 @@ export default async function PlayersPage() {
     listAllTierlists(),
   ]);
 
-  const players: PlayerProfile[] = sortPlayersByRoster(rows).map((player) =>
-    buildPlayerProfile(player),
-  );
+  const players: PlayerProfile[] = sortPlayersByRoster(
+    mergeDuplicatePlayerRows(rows),
+  ).map((player) => buildPlayerProfile(player));
 
   const tierlistsByPlayerId: Record<
     string,

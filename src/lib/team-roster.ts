@@ -57,6 +57,27 @@ export function teamRosterEntries(): TeamRosterEntry[] {
   return loadTeamRoster().players;
 }
 
+/** Stable id for ingest — matches LCU spectate (`player-filkus`, etc.). */
+export function rosterExternalId(entry: TeamRosterEntry): string {
+  if (entry.externalId) return entry.externalId;
+  const slug = entry.displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+  return `player-${slug}`;
+}
+
+export function rosterEntryToIngestPlayer(entry: TeamRosterEntry) {
+  return {
+    externalId: rosterExternalId(entry),
+    displayName: entry.displayName,
+    summonerName: entry.summonerName,
+    teamRole: entry.teamRole,
+    memberRole: entry.memberRole,
+    active: true as const,
+  };
+}
+
 export function isTeamRosterMember(ref: {
   displayName?: string;
   summonerName?: string;
