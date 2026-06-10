@@ -1,4 +1,4 @@
-import type { LoLRole, MatchResult, UserRole } from "@prisma/client";
+import type { LoLRole, MatchResult, Side, UserRole } from "@prisma/client";
 import type {
   ChampionPoolEntry,
   CombatSummary,
@@ -24,8 +24,42 @@ export type ParticipationWithMatch = {
   kills: number | null;
   deaths: number | null;
   assists: number | null;
-  match: { playedAt: Date; result: MatchResult | null };
+  side?: Side | null;
+  position?: string | null;
+  match: { playedAt: Date; result: MatchResult | null; side?: Side };
 };
+
+const ROLE_POSITIONS: Record<LoLRole, ReadonlySet<string>> = {
+  TOP: new Set(["TOP"]),
+  JUNGLE: new Set(["JUNGLE"]),
+  MID: new Set(["MIDDLE", "MID"]),
+  ADC: new Set(["BOTTOM", "ADC"]),
+  SUPPORT: new Set(["UTILITY", "SUPPORT"]),
+  FILL: new Set([
+    "TOP",
+    "JUNGLE",
+    "MIDDLE",
+    "MID",
+    "BOTTOM",
+    "ADC",
+    "UTILITY",
+    "SUPPORT",
+  ]),
+};
+
+/** Drop enemy-side rows and off-role games (e.g. support Zyra on a top main). */
+export function filterParticipationsForPlayerStats<
+  T extends ParticipationWithMatch,
+>(parts: T[], teamRole: LoLRole): T[] {
+  const allowed = ROLE_POSITIONS[teamRole];
+  return parts.filter((p) => {
+    if (p.match.side && p.side != null && p.side !== p.match.side) {
+      return false;
+    }
+    if (teamRole === "FILL" || !p.position) return true;
+    return allowed.has(p.position.toUpperCase());
+  });
+}
 
 /** Shrinkage toward the player's overall win rate (stabilizes small samples). */
 const COMBINED_WR_PRIOR_GAMES = 5;
@@ -201,7 +235,10 @@ export function buildPlayerProfile(
     participations: ParticipationWithMatch[];
   },
 ): PlayerProfile {
-  const { participations } = player;
+  const participations = filterParticipationsForPlayerStats(
+    player.participations,
+    player.teamRole,
+  );
   const overall = computePlayerRecord(participations);
   const accounts = resolveAccounts(player.accounts ?? [], player.summonerName);
   return {

@@ -27,7 +27,7 @@ const playerInclude = {
   accounts: { orderBy: [{ region: "asc" }, { createdAt: "asc" }] },
   participations: {
     include: {
-      match: { select: { playedAt: true, result: true } },
+      match: { select: { playedAt: true, result: true, side: true } },
     },
   },
 } satisfies Prisma.PlayerInclude;

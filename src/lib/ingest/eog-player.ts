@@ -5,6 +5,7 @@ import {
   scoreboardRoleForLaneIndex,
 } from "@/lib/build-normalize";
 import { championDisplayName } from "@/lib/champions";
+import { rosterEntryFor, rosterExternalId } from "@/lib/team-roster";
 import type { IngestParticipant, ParticipantBuild } from "./types";
 
 /** Raw player object from LCU `/lol-end-of-game/v1/eog-stats-block`. */
@@ -155,10 +156,21 @@ export function extractParticipantFromEogPlayer(
   const cs =
     (stats.MINIONS_KILLED ?? 0) + (stats.NEUTRAL_MINIONS_KILLED ?? 0);
   const build = extractBuild(p);
+  const summonerName = eogRiotId(p) || undefined;
+  const displayName = eogDisplayName(p);
+
+  let playerExternalId: string | undefined;
+  if (!isOpponent && (summonerName || displayName)) {
+    const roster = rosterEntryFor({ summonerName, displayName });
+    if (roster) {
+      playerExternalId = roster.externalId ?? rosterExternalId(roster);
+    }
+  }
 
   return {
-    displayName: eogDisplayName(p),
-    summonerName: eogRiotId(p) || undefined,
+    displayName,
+    summonerName,
+    playerExternalId,
     champion: championDisplayName(p.championName ?? "Unknown"),
     side,
     opponent: isOpponent,

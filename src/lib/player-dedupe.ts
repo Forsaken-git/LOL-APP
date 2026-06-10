@@ -4,10 +4,16 @@ import { rosterExternalId, teamRosterEntries } from "@/lib/team-roster";
 export function playerIdentityKey(
   summonerName: string | null,
   displayName: string,
+  externalId?: string | null,
 ): string {
-  if (summonerName) {
-    const base = summonerName.split("#")[0]?.trim().toLowerCase() ?? "";
-    if (base) return `sum:${base}`;
+  if (externalId?.trim()) {
+    return `ext:${externalId.trim().toLowerCase()}`;
+  }
+  if (summonerName?.trim()) {
+    const norm = summonerName.trim().toLowerCase();
+    if (norm.includes("#")) return `sum:${norm}`;
+    const base = norm.split("#")[0] ?? norm;
+    if (base) return `sumbase:${base}`;
   }
   return `name:${displayName.trim().toLowerCase()}`;
 }
@@ -39,7 +45,11 @@ export function mergeDuplicatePlayerRows<
 >(rows: T[]): T[] {
   const groups = new Map<string, T[]>();
   for (const row of rows) {
-    const key = playerIdentityKey(row.summonerName, row.displayName);
+    const key = playerIdentityKey(
+      row.summonerName,
+      row.displayName,
+      row.externalId,
+    );
     const list = groups.get(key) ?? [];
     list.push(row);
     groups.set(key, list);
@@ -108,7 +118,11 @@ export async function dedupeActivePlayers(): Promise<{
 
   const groups = new Map<string, typeof players>();
   for (const player of players) {
-    const key = playerIdentityKey(player.summonerName, player.displayName);
+    const key = playerIdentityKey(
+      player.summonerName,
+      player.displayName,
+      player.externalId,
+    );
     const list = groups.get(key) ?? [];
     list.push(player);
     groups.set(key, list);
@@ -131,9 +145,14 @@ export async function dedupeActivePlayers(): Promise<{
   });
   for (const entry of teamRosterEntries()) {
     const targetId = rosterExternalId(entry);
-    const key = playerIdentityKey(entry.summonerName ?? null, entry.displayName);
+    const key = playerIdentityKey(
+      entry.summonerName ?? null,
+      entry.displayName,
+      targetId,
+    );
     const matches = remaining.filter(
-      (p) => playerIdentityKey(p.summonerName, p.displayName) === key,
+      (p) =>
+        playerIdentityKey(p.summonerName, p.displayName, p.externalId) === key,
     );
     if (matches.length === 0) continue;
     const keep = pickCanonicalPlayer(matches);
