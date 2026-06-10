@@ -6,7 +6,6 @@ import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import type { PlayerAccountEntry } from "@/lib/player-profile-types";
 import {
   formatRegionLabel,
-  groupAccountsByRegion,
   normalizeSummonerKey,
   opGgProfileUrl,
   validateSummonerName,
@@ -126,8 +125,6 @@ export function PlayerAccountsTab({
     }
   }
 
-  const grouped = groupAccountsByRegion(accounts);
-
   return (
     <form onSubmit={onSave} className="space-y-4">
       <p className="text-xs text-muted">
@@ -137,7 +134,7 @@ export function PlayerAccountsTab({
 
       <div className="grid gap-4 sm:grid-cols-2">
         {REGIONS.map(({ region, placeholder }) => {
-          const list = grouped[region];
+          const list = accounts.filter((account) => account.region === region);
           return (
             <section
               key={region}

@@ -1,4 +1,5 @@
 import nextDynamic from "next/dynamic";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -23,13 +24,13 @@ const PlayersRoster = nextDynamic(
 export const dynamic = "force-dynamic";
 
 const playerInclude = {
-  accounts: { orderBy: [{ region: "asc" as const }, { createdAt: "asc" as const }] },
+  accounts: { orderBy: [{ region: "asc" }, { createdAt: "asc" }] },
   participations: {
     include: {
       match: { select: { playedAt: true, result: true } },
     },
   },
-} as const;
+} satisfies Prisma.PlayerInclude;
 
 export default async function PlayersPage() {
   const [activeRows, formerRows, tierlistRows] = await Promise.all([
