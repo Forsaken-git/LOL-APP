@@ -22,24 +22,36 @@ const PlayersRoster = nextDynamic(
 
 export const dynamic = "force-dynamic";
 
+const playerInclude = {
+  accounts: { orderBy: [{ region: "asc" as const }, { createdAt: "asc" as const }] },
+  participations: {
+    include: {
+      match: { select: { playedAt: true, result: true } },
+    },
+  },
+} as const;
+
 export default async function PlayersPage() {
-  const [rows, tierlistRows] = await Promise.all([
+  const [activeRows, formerRows, tierlistRows] = await Promise.all([
     prisma.player.findMany({
       where: { active: true },
-      include: {
-        participations: {
-          include: {
-            match: { select: { playedAt: true, result: true } },
-          },
-        },
-      },
+      include: playerInclude,
+    }),
+    prisma.player.findMany({
+      where: { active: false },
+      include: playerInclude,
+      orderBy: { displayName: "asc" },
     }),
     listAllTierlists(),
   ]);
 
   const players: PlayerProfile[] = sortPlayersByRoster(
-    mergeDuplicatePlayerRows(rows),
+    mergeDuplicatePlayerRows(activeRows),
   ).map((player) => buildPlayerProfile(player));
+
+  const formerPlayers: PlayerProfile[] = mergeDuplicatePlayerRows(formerRows).map(
+    (player) => buildPlayerProfile(player),
+  );
 
   const tierlistsByPlayerId: Record<
     string,
@@ -63,7 +75,11 @@ export default async function PlayersPage() {
         description="Active roster — click a player for champion pool and stats"
       />
 
-      <PlayersRoster players={players} tierlistsByPlayerId={tierlistsByPlayerId} />
+      <PlayersRoster
+        players={players}
+        formerPlayers={formerPlayers}
+        tierlistsByPlayerId={tierlistsByPlayerId}
+      />
     </div>
   );
 }

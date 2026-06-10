@@ -40,6 +40,10 @@ function summonerMatches(a: string, b: string): boolean {
 
 let cached: TeamRoster | null = null;
 
+export function clearTeamRosterCache(): void {
+  cached = null;
+}
+
 export function loadTeamRoster(): TeamRoster {
   if (cached) return cached;
 

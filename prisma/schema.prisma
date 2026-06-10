@@ -66,6 +66,11 @@ enum PickBanType {
   BAN
 }
 
+enum LoLRegion {
+  WEST
+  EAST
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -90,7 +95,21 @@ model Player {
   mvpMatches     Match[]              @relation("MatchMvp")
   availability   AvailabilitySlot[]
   tierlists      Tierlist[]
+  accounts       PlayerAccount[]
   updatedAt      DateTime             @updatedAt @default(now())
+}
+
+model PlayerAccount {
+  id           String    @id @default(cuid())
+  playerId     String
+  player       Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  region       LoLRegion
+  summonerName String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt @default(now())
+
+  @@unique([playerId, summonerName])
+  @@index([playerId, region])
 }
 
 model Event {

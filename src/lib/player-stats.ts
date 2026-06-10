@@ -2,9 +2,11 @@ import type { LoLRole, MatchResult, UserRole } from "@prisma/client";
 import type {
   ChampionPoolEntry,
   CombatSummary,
+  PlayerAccountEntry,
   PlayerProfile,
   PlayerRecord,
 } from "@/lib/player-profile-types";
+import { primarySummonerName } from "@/lib/player-accounts-shared";
 
 export type {
   ChampionPoolEntry,
@@ -162,6 +164,27 @@ export function recentChampions(
   return result;
 }
 
+function resolveAccounts(
+  accounts: {
+    id?: string;
+    region: PlayerAccountEntry["region"];
+    summonerName: string;
+  }[],
+  legacySummonerName: string | null,
+): PlayerAccountEntry[] {
+  if (accounts.length > 0) {
+    return accounts.map((a) => ({
+      id: a.id,
+      region: a.region,
+      summonerName: a.summonerName,
+    }));
+  }
+  if (legacySummonerName) {
+    return [{ region: "WEST", summonerName: legacySummonerName }];
+  }
+  return [];
+}
+
 export function buildPlayerProfile(
   player: {
     id: string;
@@ -169,17 +192,26 @@ export function buildPlayerProfile(
     summonerName: string | null;
     teamRole: LoLRole;
     memberRole: UserRole;
+    active?: boolean;
+    accounts?: {
+      id?: string;
+      region: PlayerAccountEntry["region"];
+      summonerName: string;
+    }[];
     participations: ParticipationWithMatch[];
   },
 ): PlayerProfile {
   const { participations } = player;
   const overall = computePlayerRecord(participations);
+  const accounts = resolveAccounts(player.accounts ?? [], player.summonerName);
   return {
     id: player.id,
     displayName: player.displayName,
-    summonerName: player.summonerName,
+    summonerName: primarySummonerName(accounts, player.summonerName),
     teamRole: player.teamRole,
     memberRole: player.memberRole,
+    active: player.active ?? true,
+    accounts,
     totalGames: participations.length,
     overall,
     champions: buildChampionPool(participations, overall),

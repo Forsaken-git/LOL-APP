@@ -34,8 +34,8 @@ export default async function AvailabilityPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Weekly Schedule"
-        description="Tap cells to set availability — saves automatically"
+        title="Schedule"
+        description="Mark the hours you're free on the grid — saves automatically"
       />
 
       <ScheduleBoard

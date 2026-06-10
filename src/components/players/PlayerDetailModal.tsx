@@ -6,7 +6,18 @@ import { ArrowDown, ArrowUp, ArrowUpDown, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { championImageUrl } from "@/lib/champions";
 import { formatTeamRole, rosterLabel } from "@/lib/player-display";
+import {
+  formatRegionLabel,
+  groupAccountsByRegion,
+  opGgProfileUrl,
+} from "@/lib/player-accounts-shared";
 import type { ChampionPoolEntry, PlayerProfile } from "@/lib/player-profile-types";
+import { PlayerAccountsTab } from "./PlayerAccountsTab";
+import { PlayerRosterStatus } from "./PlayerRosterStatus";
+
+type PlayerModalTab = "champions" | "accounts";
+
+const LOL_REGIONS_ORDER = ["WEST", "EAST"] as const;
 
 export type PlayerTierlistSummary = {
   id: string;
@@ -18,10 +29,12 @@ export function PlayerDetailModal({
   player,
   tierlists = [],
   onClose,
+  onRosterChange,
 }: {
   player: PlayerProfile | null;
   tierlists?: PlayerTierlistSummary[];
   onClose: () => void;
+  onRosterChange?: () => void;
 }) {
   const close = useCallback(() => onClose(), [onClose]);
 
@@ -38,6 +51,12 @@ export function PlayerDetailModal({
     };
   }, [player, close]);
 
+  const [tab, setTab] = useState<PlayerModalTab>("champions");
+
+  useEffect(() => {
+    if (player) setTab("champions");
+  }, [player?.id]);
+
   if (!player) return null;
 
   const isSub = player.memberRole === "SUB";
@@ -45,7 +64,7 @@ export function PlayerDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={`${player.displayName} stats`}
@@ -56,11 +75,14 @@ export function PlayerDetailModal({
         onClick={close}
         aria-label="Close"
       />
-      <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+      <div className="relative z-10 flex max-h-[100dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl sm:max-h-[min(92vh,900px)] sm:rounded-2xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-lg font-bold text-foreground">{player.displayName}</h2>
+              {!player.active && (
+                <Badge variant="default">Former</Badge>
+              )}
               <Badge variant={isSub ? "default" : "blue"}>
                 {rosterLabel(player.memberRole)}
               </Badge>
@@ -68,9 +90,37 @@ export function PlayerDetailModal({
                 {formatTeamRole(player.teamRole)}
               </span>
             </div>
-            {player.summonerName && (
+            {player.accounts.length > 0 ? (
+              <div className="mt-1 space-y-1 text-sm">
+                {LOL_REGIONS_ORDER.map((region) => {
+                  const list = groupAccountsByRegion(player.accounts)[region];
+                  if (list.length === 0) return null;
+                  return (
+                    <div
+                      key={region}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-muted"
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wide text-faint">
+                        {formatRegionLabel(region)}
+                      </span>
+                      {list.map((account) => (
+                        <a
+                          key={account.id ?? `${region}-${account.summonerName}`}
+                          href={opGgProfileUrl(region, account.summonerName)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="link-accent text-xs"
+                        >
+                          {account.summonerName}
+                        </a>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : player.summonerName ? (
               <p className="mt-0.5 text-sm text-muted">{player.summonerName}</p>
-            )}
+            ) : null}
             <p className="mt-1 text-xs text-faint">
               {overall.games} game{overall.games === 1 ? "" : "s"} with result ·{" "}
               <span className="text-emerald-400">{overall.wins}W</span>
@@ -90,7 +140,7 @@ export function PlayerDetailModal({
           </button>
         </div>
 
-        <div className="px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
           {tierlists.length > 0 && (
             <section className="mb-4 flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">
@@ -109,15 +159,45 @@ export function PlayerDetailModal({
             </section>
           )}
 
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted">
-            Champion pool
-          </h3>
-          {player.champions.length === 0 ? (
-            <p className="text-sm text-muted">No games recorded yet.</p>
+          <div className="mb-4 flex gap-1 rounded-xl border border-border bg-inset/30 p-1">
+            <ModalTab
+              active={tab === "champions"}
+              onClick={() => setTab("champions")}
+            >
+              Champions
+            </ModalTab>
+            <ModalTab
+              active={tab === "accounts"}
+              onClick={() => setTab("accounts")}
+            >
+              Accounts
+            </ModalTab>
+          </div>
+
+          {tab === "champions" ? (
+            player.champions.length === 0 ? (
+              <p className="text-sm text-muted">No games recorded yet.</p>
+            ) : (
+              <ChampionPoolTable key={player.id} champions={player.champions} />
+            )
           ) : (
-            <ChampionPoolTable key={player.id} champions={player.champions} />
+            <PlayerAccountsTab
+              key={player.id}
+              playerId={player.id}
+              initialAccounts={player.accounts}
+            />
           )}
         </div>
+
+        <PlayerRosterStatus
+          playerId={player.id}
+          displayName={player.displayName}
+          active={player.active}
+          onChanged={() => {
+            onRosterChange?.();
+            if (player.active) onClose();
+          }}
+        />
       </div>
     </div>
   );
@@ -152,6 +232,30 @@ function sortChampions(
   });
 }
 
+function ModalTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+        active
+          ? "bg-accent/20 text-accent-bright"
+          : "text-muted hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function ChampionPoolTable({ champions }: { champions: ChampionPoolEntry[] }) {
   const [sortKey, setSortKey] = useState<ChampionSortKey>("games");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
@@ -171,7 +275,8 @@ function ChampionPoolTable({ champions }: { champions: ChampionPoolEntry[] }) {
   }
 
   return (
-    <table className="w-full text-left text-sm">
+    <div className="-mx-1 overflow-x-auto px-1">
+    <table className="w-full min-w-[28rem] text-left text-sm">
       <thead>
         <tr className="table-head border-b border-border">
           <SortableTh
@@ -213,6 +318,7 @@ function ChampionPoolTable({ champions }: { champions: ChampionPoolEntry[] }) {
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 

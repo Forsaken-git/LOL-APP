@@ -12,6 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "seed:remote": "tsx scripts/seed-remote.ts",
     "sync:remote": "tsx scripts/sync-remote.ts",
+    "sync:lcu-roster": "tsx scripts/sync-lcu-roster-from-hub.ts",
     "dedupe:remote": "tsx scripts/dedupe-remote.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
     "ingest": "tsx scripts/ingest-file.ts",

@@ -26,12 +26,22 @@ export type ChampionPoolEntry = PlayerRecord & {
   combat: CombatSummary | null;
 };
 
+export type PlayerRegion = "WEST" | "EAST";
+
+export type PlayerAccountEntry = {
+  id?: string;
+  region: PlayerRegion;
+  summonerName: string;
+};
+
 export type PlayerProfile = {
   id: string;
   displayName: string;
   summonerName: string | null;
   teamRole: TeamRole;
   memberRole: MemberRole;
+  active: boolean;
+  accounts: PlayerAccountEntry[];
   totalGames: number;
   overall: PlayerRecord;
   champions: ChampionPoolEntry[];

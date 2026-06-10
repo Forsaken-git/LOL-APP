@@ -24,6 +24,12 @@ if (!current) {
     `DATABASE_URL="${current}" is not valid for SQLite on Railway — using ${RAILWAY_DB}`,
   );
   process.env.DATABASE_URL = RAILWAY_DB;
+} else if (railway && current.startsWith("file:") && !current.includes("/data/")) {
+  // file:./dev.db lives inside the container — wiped on every redeploy.
+  console.warn(
+    `DATABASE_URL="${current}" is not on the Railway volume — using ${RAILWAY_DB}`,
+  );
+  process.env.DATABASE_URL = RAILWAY_DB;
 } else if (!railway && current.startsWith("libsql:")) {
   console.warn(
     `DATABASE_URL uses libsql:// — use ${LOCAL_DB} locally or deploy on Railway with a /data volume`,
