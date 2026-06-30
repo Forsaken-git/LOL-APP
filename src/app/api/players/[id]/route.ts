@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
+import { deletePlayer } from "@/lib/players/delete-player";
 import { setPlayerActive } from "@/lib/players/set-active";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
+  try {
+    const result = await deletePlayer(id);
+    return NextResponse.json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Delete failed";
+    const status = message === "Player not found" ? 404 : 500;
+    return NextResponse.json({ error: message }, { status });
+  }
+}
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;

@@ -1,5 +1,5 @@
 /**
- * Import hub JSON from team data folders: cwl, scrims, titans league, officials.
+ * Import hub JSON from team data folders: scrims, prime league.
  *
  *   npm run ingest:teams
  *   npm run ingest:teams -- --dry-run
@@ -53,7 +53,7 @@ async function main() {
   const unlabeled = refs.filter((r) => !r.folderContext).length;
   if (unlabeled > 0) {
     console.warn(
-      `Warning: ${unlabeled} file(s) are not under cwl/titans league/scrims — league may default to file content only.`,
+      `Warning: ${unlabeled} file(s) are not under scrims/prime league — league may default to file content only.`,
     );
   }
 

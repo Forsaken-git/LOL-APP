@@ -1,7 +1,7 @@
 import type { EventType, GameType, Prisma } from "@prisma/client";
 
-/** The three competition types the team tracks. */
-export type CompetitionId = "cwl" | "titans" | "scrim";
+/** The competition types the team tracks. */
+export type CompetitionId = "scrim" | "prime";
 
 export type Competition = {
   id: CompetitionId;
@@ -16,34 +16,20 @@ export type Competition = {
 
 export const COMPETITIONS: Competition[] = [
   {
-    id: "cwl",
-    label: "CWL",
-    league: "CWL",
-    gameType: "OFFICIAL",
-    eventType: "CWL",
-    folderPatterns: ["cwl", "officials", "official"],
-  },
-  {
-    id: "titans",
-    label: "Titans",
-    league: "Titans League",
-    gameType: "OFFICIAL",
-    eventType: "TITANS",
-    folderPatterns: [
-      "titans",
-      "titans league",
-      "titans-league",
-      "titansleague",
-      "titans_league",
-    ],
-  },
-  {
     id: "scrim",
     label: "Scrims",
     league: "Scrim",
     gameType: "SCRIM",
     eventType: "SCRIM",
     folderPatterns: ["scrim", "scrims"],
+  },
+  {
+    id: "prime",
+    label: "Prime League",
+    league: "Prime League",
+    gameType: "OFFICIAL",
+    eventType: "OTHER",
+    folderPatterns: ["prime", "prime league", "prime-league", "primeleague"],
   },
 ];
 
@@ -62,8 +48,7 @@ export function competitionForLeague(league: string): Competition | undefined {
   return COMPETITIONS.find(
     (c) =>
       c.league.toLowerCase() === n ||
-      c.folderPatterns.some((p) => p === n) ||
-      (c.id === "cwl" && n === "official"),
+      c.folderPatterns.some((p) => p === n),
   );
 }
 
@@ -89,9 +74,8 @@ export function matchWhereForCompetition(
 ): Prisma.MatchWhereInput {
   const c = competitionById(id)!;
   const leagueVariants: string[] = [c.league];
-  if (id === "cwl") leagueVariants.push("Official", "CWL");
-  if (id === "titans") leagueVariants.push("Titans", "Titans League");
   if (id === "scrim") leagueVariants.push("Scrim", "Scrims", "SCRIM");
+  if (id === "prime") leagueVariants.push("Prime", "Prime League", "PrimeLeague");
 
   if (c.gameType === "SCRIM") {
     return {
@@ -108,18 +92,21 @@ export function matchWhereForCompetition(
   };
 }
 
-/** CWL + Titans (excludes scrims) for league record stats. */
+/** Prime League official games (excludes scrims) for league record stats. */
 export function matchWhereLeaguePlay(): Prisma.MatchWhereInput {
-  return {
-    OR: [
-      matchWhereForCompetition("cwl"),
-      matchWhereForCompetition("titans"),
-    ],
-  };
+  return matchWhereForCompetition("prime");
 }
 
-export const IMPORT_FOLDER_NAMES = [
-  "cwl",
-  "titans league",
-  "scrims",
-] as const;
+export const IMPORT_FOLDER_NAMES = ["scrims", "prime league"] as const;
+
+/** Session grouping on /matches (scrims + Prime League only). */
+export function matchUsesSessionGrouping(match: {
+  league: string;
+  gameType: string;
+}): boolean {
+  const comp = competitionForLeague(match.league);
+  if (comp?.id === "scrim" || comp?.id === "prime") return true;
+  if (match.gameType === "SCRIM" || match.gameType === "TRAINING") return true;
+  const league = match.league.trim().toLowerCase();
+  return league.includes("prime");
+}

@@ -131,4 +131,4 @@ export function sideSummary(entries: DraftEntry[], side: Side) {
   };
 }
 
-export const LEAGUE_OPTIONS = ["CWL", "Titans", "Scrim", "Practice"] as const;
+export const LEAGUE_OPTIONS = ["Prime League", "Scrim", "Practice"] as const;

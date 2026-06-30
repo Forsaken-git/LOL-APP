@@ -20,6 +20,7 @@
     "ingest:inspect": "tsx scripts/inspect-json.ts",
     "ingest:teams": "tsx scripts/ingest-teams.ts",
     "prune:players": "tsx scripts/prune-players.ts",
+    "wipe:data": "tsx scripts/wipe-all-data.ts --yes",
     "lcu:watch": "python -m scripts.lcu_spectate watch",
     "lcu:status": "python -m scripts.lcu_spectate status",
     "lcu:launch": "python -m scripts.lcu_spectate launch",

@@ -397,7 +397,7 @@ export function ManualMatchForm({
   const [date, setDate] = useState(() => initial?.date ?? format(new Date(), "yyyy-MM-dd"));
   const [time, setTime] = useState(() => initial?.time ?? formatTime24(new Date()));
   const [gameDuration, setGameDuration] = useState(() => initial?.gameDuration ?? "");
-  const [league, setLeague] = useState<string>(initial?.league ?? COMPETITIONS[2].league);
+  const [league, setLeague] = useState<string>(initial?.league ?? COMPETITIONS[0].league);
   const [customLeague, setCustomLeague] = useState("");
   const [opponent, setOpponent] = useState(initial?.opponent ?? "");
   const [result, setResult] = useState<MatchResult>(initial?.result ?? "WIN");

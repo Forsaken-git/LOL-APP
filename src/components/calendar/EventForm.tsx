@@ -37,7 +37,7 @@ export function EventForm({
 }) {
   const isEdit = Boolean(event);
 
-  const [type, setType] = useState(COMPETITIONS[2].eventType);
+  const [type, setType] = useState(COMPETITIONS[0].eventType);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(() => format(selectedDate, "yyyy-MM-dd"));
   const [time, setTime] = useState("18:00");
@@ -55,7 +55,7 @@ export function EventForm({
       return;
     }
     setTitle("");
-    setType(COMPETITIONS[2].eventType);
+    setType(COMPETITIONS[0].eventType);
     setDate(format(selectedDate, "yyyy-MM-dd"));
     setTime("18:00");
     setError("");
@@ -97,7 +97,7 @@ export function EventForm({
 
     if (!isEdit) {
       setTitle("");
-      setType(COMPETITIONS[2].eventType);
+      setType(COMPETITIONS[0].eventType);
       setDate(format(selectedDate, "yyyy-MM-dd"));
       setTime("18:00");
     }

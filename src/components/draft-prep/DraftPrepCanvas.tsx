@@ -81,6 +81,7 @@ export function DraftPrepCanvas() {
   const [isPanning, setIsPanning] = useState(false);
   const [slotPicker, setSlotPicker] = useState<SlotPickerState>(null);
   const [syncState, setSyncState] = useState<"idle" | "saving" | "error">("idle");
+  const [syncError, setSyncError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panMovedRef = useRef(false);
   const panDrag = useRef<{
@@ -180,12 +181,19 @@ export function DraftPrepCanvas() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       setSyncState("saving");
+      setSyncError(null);
       void saveDraftPrepScenarios(scenarios)
         .then(() => {
           setSyncState("idle");
+          setSyncError(null);
           clearDraftPrepLocalCache();
         })
-        .catch(() => setSyncState("error"));
+        .catch((err: unknown) => {
+          setSyncState("error");
+          setSyncError(
+            err instanceof Error ? err.message : "Failed to save draft prep",
+          );
+        });
     }, 500);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -674,11 +682,11 @@ export function DraftPrepCanvas() {
         )}
       </div>
 
-      <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur-sm">
+      <div className="absolute bottom-4 left-4 z-10 max-w-xs rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur-sm">
         {syncState === "saving"
           ? "Saving…"
           : syncState === "error"
-            ? "Save failed — retrying on next edit"
+            ? (syncError ?? "Save failed — retrying on next edit")
             : "Synced to team board"}
       </div>
 

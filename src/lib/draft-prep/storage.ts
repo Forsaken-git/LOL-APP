@@ -88,7 +88,10 @@ export async function saveDraftPrepScenarios(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ scenarios }),
   });
-  if (!res.ok) throw new Error("Failed to save draft prep");
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Failed to save draft prep");
+  }
 }
 
 function normalizeScenarioFromStorage(raw: unknown): DraftPrepScenario | null {

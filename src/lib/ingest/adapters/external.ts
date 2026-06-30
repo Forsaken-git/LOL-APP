@@ -58,8 +58,7 @@ function normalizeSide(value: unknown): Side | null {
 
 function normalizeEventType(value: unknown, title?: string): EventType {
   const text = `${typeof value === "string" ? value : ""} ${title ?? ""}`.toLowerCase();
-  if (text.includes("cwl")) return "CWL";
-  if (text.includes("titan")) return "TITANS";
+  if (text.includes("prime")) return "OTHER";
   if (text.includes("scrim") || text.includes("practice")) return "SCRIM";
   if (text.includes("train")) return "TRAINING";
   if (text.includes("meet")) return "MEETING";

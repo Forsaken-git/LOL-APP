@@ -76,7 +76,7 @@ Prisma in this project uses `provider = "sqlite"`, which works with Turso.
    | Name | Value |
    |------|--------|
    | `TURSO_DATABASE_URL` | Turso `libsql://...` URL |
-   | `TURSO_AUTH_TOKEN` | Turso auth token (from Turso dashboard → database → Connect) |
+   | `TURSO_AUTH_TOKEN` | Turso **read-write** auth token (Turso dashboard → database → Connect — not a read-only token) |
    | `DATABASE_URL` | `file:./dev.db` (dummy — Prisma CLI requires `file:`; runtime uses Turso via adapter) |
    | `INGEST_API_KEY` | Long random secret (e.g. from `openssl rand -hex 32`) |
 

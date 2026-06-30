@@ -1,7 +1,7 @@
 import { format, isSameDay, parseISO } from "date-fns";
 
 /** Calendar marker kinds (may differ from raw Prisma EventType). */
-export type MarkerKind = "cwl" | "titans" | "scrim" | "played";
+export type MarkerKind = "prime" | "scrim" | "played";
 
 export type DayMarker = {
   date: string;
@@ -24,17 +24,11 @@ export const MARKER_STYLES: Record<
   MarkerKind,
   { dot: string; tint: string; chip: string; label: string }
 > = {
-  cwl: {
+  prime: {
     dot: "bg-orange-400 ring-1 ring-orange-300/40 shadow-[0_0_5px_rgba(251,146,60,0.45)]",
     tint: "bg-orange-500/22",
     chip: "border-orange-400/50 bg-orange-400/15 text-foreground",
-    label: "CWL",
-  },
-  titans: {
-    dot: "bg-fuchsia-400 ring-1 ring-fuchsia-300/40 shadow-[0_0_5px_rgba(232,121,249,0.45)]",
-    tint: "bg-fuchsia-400/[0.1]",
-    chip: "border-fuchsia-400/50 bg-fuchsia-400/15 text-foreground",
-    label: "titans",
+    label: "Prime League",
   },
   scrim: {
     dot: "bg-cyan-400 ring-1 ring-cyan-400/25",
@@ -50,9 +44,9 @@ export const MARKER_STYLES: Record<
   },
 };
 
-const LEGEND_ORDER: MarkerKind[] = ["played", "cwl", "titans", "scrim"];
+const LEGEND_ORDER: MarkerKind[] = ["played", "prime", "scrim"];
 
-const KIND_PRIORITY: MarkerKind[] = ["played", "cwl", "titans", "scrim"];
+const KIND_PRIORITY: MarkerKind[] = ["played", "prime", "scrim"];
 
 export const DAY_STATE_STYLES = {
   today: {
@@ -69,25 +63,24 @@ export function eventTypeToMarkerKind(type: string): MarkerKind {
   switch (type) {
     case "PLAYED_MATCH":
       return "played";
-    case "TITANS":
-      return "titans";
     case "SCRIM":
     case "TRAINING":
       return "scrim";
     case "CWL":
+    case "TITANS":
     case "MATCH":
     case "OTHER":
     default:
-      return "cwl";
+      return "prime";
   }
 }
 
 export function eventTypeLabel(type: string): string {
   if (type === "PLAYED_MATCH") return "Played";
-  if (type === "TITANS") return "Titans";
   if (type === "SCRIM" || type === "TRAINING") return "SCRIMS";
-  if (type === "CWL" || type === "OTHER" || type === "MATCH") return "CWL";
-  return "CWL";
+  if (type === "CWL" || type === "TITANS") return "Prime League";
+  if (type === "OTHER" || type === "MATCH") return "Prime League";
+  return "Prime League";
 }
 
 export function buildMonthMarkers(events: CalendarEvent[]): Map<string, DayMarker> {

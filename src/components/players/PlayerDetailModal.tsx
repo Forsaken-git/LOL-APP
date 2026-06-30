@@ -13,6 +13,7 @@ import {
 } from "@/lib/player-accounts-shared";
 import type { ChampionPoolEntry, PlayerProfile } from "@/lib/player-profile-types";
 import { PlayerAccountsTab } from "./PlayerAccountsTab";
+import { PlayerDeleteButton } from "./PlayerDeleteButton";
 import { PlayerRosterStatus } from "./PlayerRosterStatus";
 
 type PlayerModalTab = "champions" | "accounts";
@@ -197,6 +198,12 @@ export function PlayerDetailModal({
             onRosterChange?.();
             if (player.active) onClose();
           }}
+        />
+        <PlayerDeleteButton
+          playerId={player.id}
+          displayName={player.displayName}
+          gameCount={player.totalGames}
+          onDeleted={onClose}
         />
       </div>
     </div>

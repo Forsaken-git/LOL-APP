@@ -37,42 +37,59 @@ function validateScenarios(raw: unknown): DraftPrepScenario[] | null {
 }
 
 export async function GET() {
-  const rows = await prisma.draftPrepScenario.findMany({
-    orderBy: [{ row: "asc" }, { col: "asc" }],
-  });
+  try {
+    const rows = await prisma.draftPrepScenario.findMany({
+      orderBy: [{ row: "asc" }, { col: "asc" }],
+    });
 
-  return NextResponse.json({
-    scenarios: rows.map(scenarioFromRow),
-  });
+    return NextResponse.json({
+      scenarios: rows.map(scenarioFromRow),
+    });
+  } catch (error) {
+    console.error("[draft-prep GET]", error);
+    return NextResponse.json(
+      {
+        error:
+          "Draft Prep table missing. Run prisma/draft-prep-scenarios.sql on Turso.",
+        scenarios: [],
+      },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: Request) {
-  const body = (await request.json()) as { scenarios?: unknown };
-  const scenarios = validateScenarios(body.scenarios);
-  if (!scenarios) {
-    return NextResponse.json({ error: "Invalid scenarios payload" }, { status: 400 });
-  }
+  try {
+    const body = (await request.json()) as { scenarios?: unknown };
+    const scenarios = validateScenarios(body.scenarios);
+    if (!scenarios) {
+      return NextResponse.json({ error: "Invalid scenarios payload" }, { status: 400 });
+    }
 
-  const ids = scenarios.map((s) => s.id);
-
-  await prisma.$transaction(async (tx) => {
-    if (ids.length === 0) {
+    await prisma.$transaction(async (tx) => {
       await tx.draftPrepScenario.deleteMany();
-    } else {
-      await tx.draftPrepScenario.deleteMany({
-        where: { id: { notIn: ids } },
-      });
-    }
+      if (scenarios.length > 0) {
+        await tx.draftPrepScenario.createMany({
+          data: scenarios.map(scenarioToRowData),
+        });
+      }
+    });
 
-    for (const scenario of scenarios) {
-      const data = scenarioToRowData(scenario);
-      await tx.draftPrepScenario.upsert({
-        where: { id: scenario.id },
-        create: data,
-        update: data,
-      });
+    return NextResponse.json({ ok: true, count: scenarios.length });
+  } catch (error) {
+    console.error("[draft-prep PUT]", error);
+    const raw = error instanceof Error ? error.message : String(error);
+    let message = "Failed to save draft prep";
+    if (raw.includes("no such table")) {
+      message =
+        "Draft Prep table missing. Run prisma/draft-prep-scenarios.sql on Turso.";
+    } else if (
+      raw.includes("write permission") ||
+      raw.includes("write operations are forbidden")
+    ) {
+      message =
+        "Turso token is read-only. In Vercel, set TURSO_AUTH_TOKEN to a read-write database token (Turso → database → Connect → full access token), then redeploy.";
     }
-  });
-
-  return NextResponse.json({ ok: true, count: scenarios.length });
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
