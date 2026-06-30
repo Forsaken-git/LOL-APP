@@ -14,7 +14,7 @@ export function createPrismaClient(): PrismaClient {
     return new PrismaClient({ adapter });
   }
 
-  if (process.env.VERCEL) {
+  if (process.env.VERCEL === "1") {
     throw new Error(
       "Turso is not configured on Vercel. Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN (Production), then redeploy. Check /api/db-check after deploy.",
     );
