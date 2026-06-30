@@ -430,6 +430,7 @@ function DraftEditor({
         side: "BLUE" | "RED";
         result: "WIN" | "LOSS" | null;
         linkedDraftId: string | null;
+        hasCapturedPickBans: boolean;
         championPool: string[];
       }>;
       if (mounted) setMatchOptions(rows);
