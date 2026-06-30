@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { resolveTursoConfig } from "./turso-config";
 
 /** Local SQLite by default; Turso when TURSO_* env vars are set (Vercel production). */
@@ -7,7 +7,7 @@ export function createPrismaClient(): PrismaClient {
   const turso = resolveTursoConfig();
 
   if (turso) {
-    const adapter = new PrismaLibSql({
+    const adapter = new PrismaLibSQL({
       url: turso.url,
       authToken: turso.authToken,
     });
