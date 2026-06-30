@@ -1,17 +1,23 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { resolveTursoConfig } from "./turso-config";
 
 /** Local SQLite by default; Turso when TURSO_* env vars are set (Vercel production). */
 export function createPrismaClient(): PrismaClient {
-  const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
-  const tursoToken = process.env.TURSO_AUTH_TOKEN?.trim();
+  const turso = resolveTursoConfig();
 
-  if (tursoUrl && tursoToken) {
+  if (turso) {
     const adapter = new PrismaLibSql({
-      url: tursoUrl,
-      authToken: tursoToken,
+      url: turso.url,
+      authToken: turso.authToken,
     });
     return new PrismaClient({ adapter });
+  }
+
+  if (process.env.VERCEL) {
+    throw new Error(
+      "Turso is not configured on Vercel. Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN (Production), then redeploy. Check /api/db-check after deploy.",
+    );
   }
 
   return new PrismaClient({
