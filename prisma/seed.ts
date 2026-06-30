@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { createPrismaClient } from "../src/lib/create-prisma-client";
 import { teamRosterEntries } from "../src/lib/team-roster";
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main() {
   await prisma.pickBan.deleteMany();
