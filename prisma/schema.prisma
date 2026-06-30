@@ -227,3 +227,18 @@ model IngestRun {
   success   Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+/** Draft Prep canvas scenario cards (shared team board). */
+model DraftPrepScenario {
+  id            String   @id
+  title         String
+  col           Int
+  row           Int
+  pickBans      String   @default("[]")
+  extraBanSlots String   @default("[]")
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+
+  @@unique([col, row])
+}

@@ -19,10 +19,12 @@ import {
   PREP_GRID_ROWS,
 } from "@/lib/draft-prep/scenario-layout";
 import {
+  clearDraftPrepLocalCache,
+  fetchDraftPrepScenarios,
   loadDraftPrepState,
   newScenarioId,
   nextScenarioTitle,
-  saveDraftPrepState,
+  saveDraftPrepScenarios,
   type DraftPrepScenario,
 } from "@/lib/draft-prep/storage";
 import { ScenarioCard } from "./ScenarioCard";
@@ -78,6 +80,8 @@ export function DraftPrepCanvas() {
   const [draggingScenarioId, setDraggingScenarioId] = useState<string | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [slotPicker, setSlotPicker] = useState<SlotPickerState>(null);
+  const [syncState, setSyncState] = useState<"idle" | "saving" | "error">("idle");
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panMovedRef = useRef(false);
   const panDrag = useRef<{
     pointerId: number;
@@ -145,14 +149,47 @@ export function DraftPrepCanvas() {
   );
 
   useEffect(() => {
-    const state = loadDraftPrepState();
-    setScenarios(state.scenarios);
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await fetchDraftPrepScenarios();
+        if (cancelled) return;
+        if (remote.length > 0) {
+          setScenarios(remote);
+        } else {
+          const local = loadDraftPrepState();
+          if (local.scenarios.length > 0) {
+            setScenarios(local.scenarios);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setScenarios(loadDraftPrepState().scenarios);
+        }
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveDraftPrepState({ scenarios });
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      setSyncState("saving");
+      void saveDraftPrepScenarios(scenarios)
+        .then(() => {
+          setSyncState("idle");
+          clearDraftPrepLocalCache();
+        })
+        .catch(() => setSyncState("error"));
+    }, 500);
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, [scenarios, hydrated]);
 
   useEffect(() => {
@@ -635,6 +672,14 @@ export function DraftPrepCanvas() {
             </div>
           </>
         )}
+      </div>
+
+      <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur-sm">
+        {syncState === "saving"
+          ? "Saving…"
+          : syncState === "error"
+            ? "Save failed — retrying on next edit"
+            : "Synced to team board"}
       </div>
 
       <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-border bg-surface/95 p-1 shadow-lg backdrop-blur-sm">
