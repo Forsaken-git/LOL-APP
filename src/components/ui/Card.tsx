@@ -13,12 +13,12 @@ export function Card({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-[0_4px_24px_rgba(0,0,0,0.25)] backdrop-blur-sm ${className}`}
+      className={`overflow-hidden rounded-2xl border border-border bg-surface/90 shadow-[0_4px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm ${className}`}
     >
       {(title || action) && (
         <header className="flex items-center justify-between border-b border-border px-5 py-3.5">
           {title && (
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-muted">
+            <h2 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
               {title}
             </h2>
           )}

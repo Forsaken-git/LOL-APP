@@ -5,19 +5,17 @@ import { formatDateTime24Compact } from "@/lib/datetime";
 import { Trash2 } from "lucide-react";
 import { CHAMPIONS, championImageKey, championImageUrl } from "@/lib/champions";
 import {
+  championPlaysDraftLane,
+} from "@/lib/draft-positions";
+import {
   DRAFT_TURNS,
   isDraftComplete,
   type DraftEntry,
 } from "@/lib/draft";
+import { normalizeOpponent } from "@/lib/matches/opponent-key";
 
 export type DraftRole = "TOP" | "JUNGLE" | "MID" | "ADC" | "SUPPORT";
 export type DraftRoleTab = DraftRole | null;
-
-export type ChampionRoleData = {
-  roleCountsByChampion: Record<string, Record<DraftRole, number>>;
-  primaryRoleByChampion: Record<string, DraftRole | null>;
-  totalByChampion: Record<string, number>;
-};
 
 export type SerializedDraft = {
   id: string;
@@ -73,16 +71,56 @@ function buildDraftNotes(
   ].join("\n");
 }
 
-function normalizeOpponent(value: string | null | undefined): string {
-  return (value ?? "").trim().toLowerCase();
+const CHAMP_GRID_GAP_PX = 8;
+const CHAMP_ICON_MIN = 32;
+const CHAMP_ICON_STEP = 4;
+const CHAMP_ICON_MIN_COLS = 6;
+
+/** Largest icon size that still fits the pool area (width + height). */
+function maxChampionIconSize(
+  containerWidth: number,
+  containerHeight: number,
+  championCount: number,
+): number {
+  if (containerWidth <= 0) return CHAMP_ICON_MIN;
+
+  const maxByWidth = Math.floor(
+    (containerWidth - (CHAMP_ICON_MIN_COLS - 1) * CHAMP_GRID_GAP_PX) /
+      CHAMP_ICON_MIN_COLS,
+  );
+
+  let maxSize = Math.max(CHAMP_ICON_MIN, maxByWidth);
+
+  if (containerHeight > 0 && championCount > 0) {
+    let fitsHeight = CHAMP_ICON_MIN;
+    for (let size = maxSize; size >= CHAMP_ICON_MIN; size--) {
+      const cols = Math.max(
+        1,
+        Math.floor(
+          (containerWidth + CHAMP_GRID_GAP_PX) / (size + CHAMP_GRID_GAP_PX),
+        ),
+      );
+      const rows = Math.ceil(championCount / cols);
+      const neededHeight =
+        rows * size + Math.max(0, rows - 1) * CHAMP_GRID_GAP_PX;
+      if (neededHeight <= containerHeight) {
+        fitsHeight = size;
+        break;
+      }
+    }
+    maxSize = Math.min(maxSize, fitsHeight);
+  }
+
+  return (
+    Math.floor(Math.max(CHAMP_ICON_MIN, maxSize) / CHAMP_ICON_STEP) *
+    CHAMP_ICON_STEP
+  );
 }
 
 export function GameDraftWorkbench({
   initialDrafts,
-  championRoleData,
 }: {
   initialDrafts: SerializedDraft[];
-  championRoleData: ChampionRoleData;
 }) {
   const [drafts, setDrafts] = useState(initialDrafts);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -124,8 +162,8 @@ export function GameDraftWorkbench({
 
   if (selected && !showDraftList) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-center gap-2">
+      <div className="flex min-h-[calc(100dvh-5rem)] min-h-0 flex-1 flex-col gap-2">
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-2">
           <button type="button" className="btn-ghost" onClick={() => setShowDraftList(true)}>
             Draft list
           </button>
@@ -144,7 +182,6 @@ export function GameDraftWorkbench({
           draft={selected}
           onUpdated={handleUpdated}
           onDeleted={() => void handleDeleted(selected.id)}
-          championRoleData={championRoleData}
         />
       </div>
     );
@@ -339,18 +376,18 @@ function DraftEditor({
   draft,
   onUpdated,
   onDeleted,
-  championRoleData,
 }: {
   draft: SerializedDraft;
   onUpdated: (draft: SerializedDraft) => void;
   onDeleted: () => void;
-  championRoleData: ChampionRoleData;
 }) {
   const [entries, setEntries] = useState<DraftEntry[]>(draft.entries);
   const [pendingChampion, setPendingChampion] = useState<string | null>(null);
   const [roleTab, setRoleTab] = useState<DraftRoleTab>(null);
   const [search, setSearch] = useState("");
-  const [iconSize, setIconSize] = useState(40);
+  const [iconSize, setIconSize] = useState(48);
+  const [maxIconSize, setMaxIconSize] = useState(48);
+  const championPoolRef = useRef<HTMLDivElement>(null);
   const [selectedMatchId, setSelectedMatchId] = useState(draft.matchId ?? "");
   const [matchOptions, setMatchOptions] = useState<
     Array<{
@@ -361,6 +398,7 @@ function DraftEditor({
       side: "BLUE" | "RED";
       result: "WIN" | "LOSS" | null;
       linkedDraftId: string | null;
+      hasCapturedPickBans: boolean;
       championPool: string[];
     }>
   >([]);
@@ -545,15 +583,39 @@ function DraftEditor({
 
   const filteredChampions = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return CHAMPIONS.filter((c) => {
+    const filtered = CHAMPIONS.filter((c) => {
       if (allUnavailableChampionKeys.has(championImageKey(c))) return false;
-      if (roleTab && championRoleData.primaryRoleByChampion[c] !== roleTab) {
-        return false;
-      }
+      if (roleTab && !championPlaysDraftLane(c, roleTab)) return false;
       if (!query) return true;
       return c.toLowerCase().includes(query);
     });
-  }, [allUnavailableChampionKeys, championRoleData.primaryRoleByChampion, roleTab, search]);
+    return [...filtered].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: "base" }),
+    );
+  }, [allUnavailableChampionKeys, roleTab, search]);
+
+  useEffect(() => {
+    const el = championPoolRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const max = maxChampionIconSize(
+        el.clientWidth,
+        el.clientHeight,
+        filteredChampions.length,
+      );
+      setMaxIconSize(max);
+      setIconSize((current) => Math.min(current, max));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [filteredChampions.length]);
+
+  const canGrowIcons = iconSize < maxIconSize;
+  const canShrinkIcons = iconSize > CHAMP_ICON_MIN;
 
   const availableMatches = useMemo(
     () =>
@@ -561,6 +623,11 @@ function DraftEditor({
         (m) => m.linkedDraftId == null || m.linkedDraftId === draft.id || m.id === draft.matchId,
       ),
     [draft.id, draft.matchId, matchOptions],
+  );
+
+  const selectedMatch = useMemo(
+    () => availableMatches.find((m) => m.id === selectedMatchId) ?? null,
+    [availableMatches, selectedMatchId],
   );
 
   const linkDraftToMatch = useCallback(async () => {
@@ -577,7 +644,17 @@ function DraftEditor({
       setLinkError(body?.error ?? "Could not link draft to match");
       return;
     }
-    onUpdated((await res.json()) as SerializedDraft);
+    const updated = (await res.json()) as SerializedDraft & {
+      pickBanSync?: "synced" | "preserved" | "skipped";
+    };
+    if (updated.pickBanSync === "preserved") {
+      setLinkError(
+        "Linked — match already has LCU pick/bans; match data kept (not overwritten).",
+      );
+    } else {
+      setLinkError("");
+    }
+    onUpdated(updated);
   }, [draft.id, onUpdated, selectedMatchId]);
 
   const saveDraftNow = useCallback(async () => {
@@ -592,15 +669,13 @@ function DraftEditor({
   }, [draft.id, entries, onUpdated]);
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <div className="text-center">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-faint">Navigation</p>
-          <h3 className="text-sm font-semibold uppercase tracking-[0.22em] text-foreground">
-            Waiting for drafter
-          </h3>
-        </div>
-        <div className="flex items-center justify-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+      <div className="shrink-0 space-y-2 rounded-xl border border-border bg-surface/80 px-3 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-center sm:text-left">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-faint">Draft</p>
+            <h3 className="text-sm font-semibold text-foreground">{draft.title}</h3>
+          </div>
           <button
             type="button"
             className="btn-ghost flex items-center gap-1 text-rose-300"
@@ -614,7 +689,7 @@ function DraftEditor({
           <select
             value={selectedMatchId}
             onChange={(e) => setSelectedMatchId(e.target.value)}
-            className="w-[22rem] max-w-full"
+            className="w-full max-w-md sm:w-80"
           >
             <option value="">No linked match</option>
             {availableMatches.map((m) => (
@@ -641,10 +716,31 @@ function DraftEditor({
             {linking ? "Linking..." : "Link match"}
           </button>
         </div>
-        {linkError && <p className="text-center text-sm text-rose-400">{linkError}</p>}
+        {linkError && (
+          <p
+            className={`text-center text-sm ${
+              linkError.startsWith("Linked —")
+                ? "text-accent-bright"
+                : "text-rose-400"
+            }`}
+          >
+            {linkError}
+          </p>
+        )}
+        {selectedMatch?.hasCapturedPickBans && (
+          <p className="text-center text-xs text-muted">
+            Selected match has LCU pick/ban data — linking will not overwrite it.
+            Edit on the match scoreboard if needed.
+          </p>
+        )}
+        {draft.matchId && entries.length > 0 && (
+          <p className="text-center text-xs text-faint">
+            Planner draft is saved separately; ingested match pick/bans are used for stats when present.
+          </p>
+        )}
       </div>
 
-      <div className="grid min-h-[calc(100vh-13rem)] gap-3 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
+      <div className="grid min-h-0 flex-1 gap-2 lg:gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)_minmax(0,1fr)]">
         <TeamDraftColumn
           side="BLUE"
           bans={blueBans}
@@ -654,7 +750,7 @@ function DraftEditor({
           teamName={draftMeta.teamBlue}
         />
 
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-[980px] flex-col space-y-3 rounded-2xl border border-border bg-[#090b10] p-3">
+        <div className="flex h-full min-h-0 w-full flex-col space-y-3 rounded-2xl border border-border bg-surface p-3">
           <div className="flex items-center justify-between border-b border-white/10 pb-2">
             <div>
               <p className="text-base font-semibold text-sky-200">{draftMeta.teamBlue}</p>
@@ -716,25 +812,40 @@ function DraftEditor({
               />
               <button
                 type="button"
-                className="btn-ghost px-2 py-1 text-sm"
-                onClick={() => setIconSize((v) => Math.max(32, v - 4))}
+                className="btn-ghost px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() =>
+                  setIconSize((v) => Math.max(CHAMP_ICON_MIN, v - CHAMP_ICON_STEP))
+                }
+                disabled={!canShrinkIcons}
                 title="Smaller icons"
               >
                 -
               </button>
               <button
                 type="button"
-                className="btn-ghost px-2 py-1 text-sm"
-                onClick={() => setIconSize((v) => Math.min(56, v + 4))}
-                title="Bigger icons"
+                className="btn-ghost px-2 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() =>
+                  setIconSize((v) => Math.min(maxIconSize, v + CHAMP_ICON_STEP))
+                }
+                disabled={!canGrowIcons}
+                title={
+                  canGrowIcons
+                    ? "Bigger icons"
+                    : "Maximum size for this window"
+                }
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="grid grid-cols-8 gap-2 sm:grid-cols-10 xl:grid-cols-12 2xl:grid-cols-14">
+          <div ref={championPoolRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div
+              className="grid gap-2"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(${iconSize}px, 1fr))`,
+              }}
+            >
               {filteredChampions.map((c) => {
                 const selected = pendingChampion === c;
                 return (
@@ -844,12 +955,12 @@ function TeamDraftColumn({
       : "border-l border-white/20";
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <p className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-faint">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <p className="mb-2 shrink-0 text-center text-xs font-semibold uppercase tracking-wide text-faint">
         {teamName} ({side})
       </p>
       <div
-        className={`grid min-h-0 flex-1 grid-rows-5 gap-2 py-2 ${innerLineClass}`}
+        className={`grid min-h-0 flex-1 grid-rows-5 gap-2 py-1 ${innerLineClass}`}
       >
         {picks.map((champ, i) => (
           <ChampionStrip
@@ -900,7 +1011,7 @@ function ChampionStrip({
     side === "BLUE" ? "object-[88%_18%]" : "object-[12%_18%]";
   return (
     <div
-      className={`relative h-full min-h-[90px] overflow-hidden rounded-md border bg-[#0d0f15] ${
+      className={`relative h-full min-h-0 flex-1 overflow-hidden rounded-md border bg-inset ${
         active ? "border-amber-300 shadow-[0_0_0_2px_rgba(251,191,36,0.3)]" : "border-border"
       }`}
       title={champion ? `${champion} (click to remove)` : label}
@@ -963,7 +1074,7 @@ function SlotTile({
         champion
           ? "border-border-strong"
           : "border-dashed border-border"
-      } ${active ? "border-amber-300 shadow-[0_0_0_2px_rgba(251,191,36,0.35)]" : ""}`}
+      } ${active ? "border-solid border-amber-300 shadow-[inset_0_0_0_2px_rgba(251,191,36,0.35)]" : ""}`}
       title={champion ? `${champion} (click to remove)` : label}
       onClick={() => {
         if (champion) onRemoveChampion(champion);

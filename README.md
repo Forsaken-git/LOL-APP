@@ -64,18 +64,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Publish on GitHub + live URL
+Copy `.env.example` → `.env` if you have not already. Data lives in `prisma/dev.db`.
 
-**Recommended:** deploy on [Railway](https://railway.com) with a SQLite file on a persistent volume — **[docs/RAILWAY.md](docs/RAILWAY.md)**.
+Re-import saved LCU games anytime:
 
-Quick outline:
-
-1. Push this repo to GitHub.
-2. Copy `.env.example` → `.env` locally; create `data/team-roster.json` with your roster.
-3. Create a Railway project from the repo, add a volume at `/data`, set `DATABASE_URL=file:/data/renim.db` and `INGEST_API_KEY`.
-4. Seed once: `railway run npm run db:seed`.
-
-Vercel + Turso (alternative): **[docs/GITHUB.md](docs/GITHUB.md)**.
+```bash
+npm run pull:local
+# or
+npm run ingest:exports
+```
 
 ### Customizing seed data
 

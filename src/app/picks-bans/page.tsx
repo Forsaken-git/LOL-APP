@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { championDisplayName, championImageUrl } from "@/lib/champions";
-import { isDraftComplete, parseDraftEntries } from "@/lib/draft";
+import { summarizePickBanSources } from "@/lib/matches/pick-ban-aggregation";
 
 export const dynamic = "force-dynamic";
 
@@ -13,27 +13,25 @@ export default async function PicksBansPage() {
       include: { match: true },
     }),
     prisma.draftSession.findMany({
-      select: { pickBans: true, ourSide: true, matchId: true },
+      select: {
+        id: true,
+        pickBans: true,
+        ourSide: true,
+        matchId: true,
+        opponent: true,
+        league: true,
+        scheduledAt: true,
+      },
     }),
     prisma.match.count({
       where: { status: "PLAYED" },
     }),
   ]);
 
-  const draftEntries = drafts.flatMap((d) => {
-    // Priority rule: when draft is linked to a match, count only match data.
-    if (d.matchId) return [];
-    const entries = parseDraftEntries(d.pickBans);
-    if (!isDraftComplete(entries)) return [];
-    return entries.filter((e) => e.side === d.ourSide);
-  });
-
+  const summary = summarizePickBanSources({ matchPickBans, drafts });
+  const pickBans = summary.entries;
   const ourMatchPickBans = matchPickBans.filter((p) => p.side === p.match.side);
 
-  const pickBans = [
-    ...ourMatchPickBans.map((p) => ({ champion: p.champion, type: p.type })),
-    ...draftEntries.map((e) => ({ champion: e.champion, type: e.type })),
-  ];
   const normalizedPickBans = pickBans.map((p) => ({
     ...p,
     champion: championDisplayName(p.champion),
@@ -67,9 +65,29 @@ export default async function PicksBansPage() {
           {playedMatchesCount} played matches{" "}
           <span className="text-faint">
             ({new Set(ourMatchPickBans.map((p) => p.matchId)).size} matches with our pick/ban rows)
-          </span>{" "}
-          and{" "}
-          {drafts.length} drafts (our side only).
+          </span>
+          {summary.countedDraftCount > 0 && (
+            <>
+              {" "}
+              and {summary.countedDraftCount} upcoming draft
+              {summary.countedDraftCount === 1 ? "" : "s"}
+            </>
+          )}
+          {summary.linkedDraftCount > 0 && (
+            <span className="text-faint">
+              {" "}
+              · {summary.linkedDraftCount} draft
+              {summary.linkedDraftCount === 1 ? "" : "s"} linked to matches (match data only)
+            </span>
+          )}
+          {summary.skippedDuplicateDraftCount > 0 && (
+            <span className="text-faint">
+              {" "}
+              · {summary.skippedDuplicateDraftCount} planner draft
+              {summary.skippedDuplicateDraftCount === 1 ? "" : "s"} skipped (same game as ingested match)
+            </span>
+          )}
+          .
         </p>
       </Card>
     </div>

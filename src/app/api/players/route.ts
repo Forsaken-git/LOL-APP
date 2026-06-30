@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createPlayer, parseCreatePlayerBody } from "@/lib/players/create";
+import { activeTeamPlayerWhere } from "@/lib/players/team-player";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   const players = await prisma.player.findMany({
-    where: { active: true },
+    where: activeTeamPlayerWhere,
     orderBy: [{ memberRole: "asc" }, { displayName: "asc" }],
     select: {
       id: true,

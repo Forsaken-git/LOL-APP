@@ -14,16 +14,16 @@ export function StatTile({
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-elevated/80 p-5 transition-colors hover:border-white/15">
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-surface-elevated/80 p-5 transition-colors hover:border-accent/25">
       <div
         className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-accent/5 blur-2xl transition-opacity group-hover:opacity-100 opacity-0"
         aria-hidden
       />
-      <p className="text-xs font-medium uppercase tracking-wider text-muted">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
         {label}
       </p>
       <p
-        className={`relative mt-2 text-3xl font-bold tabular-nums tracking-tight ${accent ? colors[accent] : "text-foreground"}`}
+        className={`relative mt-2 font-serif text-3xl font-semibold tabular-nums tracking-wide ${accent ? colors[accent] : "text-foreground"}`}
       >
         {value}
       </p>

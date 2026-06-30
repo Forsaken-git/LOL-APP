@@ -216,7 +216,7 @@ export function PlayersRoster({
                 Former players
               </h2>
               <p className="mt-0.5 text-xs text-muted">
-                Hidden from the roster — match history kept ({formerPlayers.length})
+                Former roster members — match history kept ({formerPlayers.length})
               </p>
             </div>
             <ChevronDown

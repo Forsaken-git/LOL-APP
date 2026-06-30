@@ -8,6 +8,10 @@ import type { PlayerProfile } from "@/lib/player-profile-types";
 import { mergeDuplicatePlayerRows } from "@/lib/player-dedupe";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import { listAllTierlists } from "@/lib/tierlist-db";
+import {
+  activeTeamPlayerWhere,
+  hiddenTeamPlayerWhere,
+} from "@/lib/players/team-player";
 
 const PlayersRoster = nextDynamic(
   () =>
@@ -35,11 +39,11 @@ const playerInclude = {
 export default async function PlayersPage() {
   const [activeRows, formerRows, tierlistRows] = await Promise.all([
     prisma.player.findMany({
-      where: { active: true },
+      where: activeTeamPlayerWhere,
       include: playerInclude,
     }),
     prisma.player.findMany({
-      where: { active: false },
+      where: hiddenTeamPlayerWhere,
       include: playerInclude,
       orderBy: { displayName: "asc" },
     }),

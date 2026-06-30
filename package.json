@@ -5,15 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/run-prisma.mjs generate && next build",
-    "start": "node scripts/railway-start.mjs",
-    "start:app": "next start -p ${PORT:-3000}",
+    "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "seed:remote": "tsx scripts/seed-remote.ts",
-    "sync:remote": "tsx scripts/sync-remote.ts",
+    "pull:local": "tsx scripts/pull-local.ts",
     "sync:lcu-roster": "tsx scripts/sync-lcu-roster-from-hub.ts",
-    "dedupe:remote": "tsx scripts/dedupe-remote.ts",
     "db:reset": "prisma db push --force-reset && npm run db:seed",
     "ingest": "tsx scripts/ingest-file.ts",
     "ingest:jsonl": "tsx scripts/ingest-jsonl.ts",
@@ -29,6 +26,7 @@
     "lcu:export": "python -m scripts.lcu_spectate export-eog",
     "lcu:inspect-eog": "python -m scripts.lcu_spectate inspect-eog",
     "ddragon:champions": "node scripts/generate-champion-image-keys.mjs",
+    "draft-positions": "node scripts/generate-draft-positions.mjs",
     "postinstall": "node scripts/run-prisma.mjs generate"
   },
   "prisma": {
@@ -36,7 +34,9 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
     "date-fns": "^4.3.0",
+    "jose": "^6.2.3",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "prisma": "^6.19.3",
@@ -45,6 +45,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

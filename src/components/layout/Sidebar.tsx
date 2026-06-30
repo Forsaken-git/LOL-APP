@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hexagon, X } from "lucide-react";
+import { Bird, X } from "lucide-react";
 import { isNavActive, NAV_ITEMS } from "./nav-items";
 
 function NavLinks({
@@ -28,7 +28,7 @@ function NavLinks({
             } ${
               active
                 ? "bg-accent/15 text-foreground"
-                : "text-muted hover:bg-white/[0.04] hover:text-foreground"
+                : "text-muted hover:bg-accent/5 hover:text-foreground"
             }`}
             title={collapsed ? label : undefined}
           >
@@ -81,18 +81,18 @@ export function Sidebar({
             <button
               type="button"
               onClick={onToggle}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent-bright to-accent-dim shadow-lg shadow-accent/25 transition-transform hover:scale-105"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-accent/30 bg-gradient-to-br from-accent-bright to-accent-dim shadow-lg shadow-accent/20 transition-transform hover:scale-105"
               title={collapsed ? "Expand menu" : "Collapse menu"}
               aria-label={collapsed ? "Expand menu" : "Collapse menu"}
             >
-              <Hexagon className="h-5 w-5 text-white" strokeWidth={2.25} />
+              <Bird className="h-5 w-5 text-background" strokeWidth={1.75} />
             </button>
             {!collapsed && (
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
                   Team Hub
                 </p>
-                <h1 className="text-lg font-bold tracking-tight text-foreground">
+                <h1 className="font-serif text-xl font-semibold uppercase tracking-wide text-foreground">
                   Renim A.
                 </h1>
               </div>
@@ -128,10 +128,12 @@ export function Sidebar({
           <aside className="relative flex h-full w-[min(18rem,88vw)] flex-col border-r border-border bg-surface shadow-2xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-muted">
                   Team Hub
                 </p>
-                <p className="text-lg font-bold text-foreground">Renim A.</p>
+                <p className="font-serif text-xl font-semibold uppercase tracking-wide text-foreground">
+                  Renim A.
+                </p>
               </div>
               <button
                 type="button"

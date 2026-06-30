@@ -21,7 +21,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard, mobilePrimary: true },
   { href: "/matches", label: "Matches", icon: Swords, mobilePrimary: true },
   { href: "/picks-bans", label: "Picks & Bans", icon: Ban },
-  { href: "/drafter", label: "Drafter", icon: PenLine },
+  { href: "/draft-prep", label: "Draft Prep", icon: PenLine },
   {
     href: "/availability",
     label: "Schedule",

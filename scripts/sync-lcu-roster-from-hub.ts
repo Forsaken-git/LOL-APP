@@ -1,12 +1,12 @@
 /**
- * Pull active players from the hub and merge into local tracking files.
- * Use after adding players on Railway (where JSON files are not updated).
+ * Pull active players from the running local hub into tracking files.
  *
+ *   npm run dev   # in another terminal
  *   npm run sync:lcu-roster
  */
 
 import { syncPlayerToTrackingFiles } from "../src/lib/roster-sync";
-import { DEFAULT_HUB, loadDotEnv } from "./load-hub-env";
+import { localHubUrl, loadDotEnv } from "./load-hub-env";
 
 type HubPlayer = {
   displayName: string;
@@ -18,7 +18,7 @@ type HubPlayer = {
 
 async function main() {
   loadDotEnv();
-  const hubUrl = (process.env.HUB_URL ?? DEFAULT_HUB).trim().replace(/\/$/, "");
+  const hubUrl = localHubUrl();
 
   const res = await fetch(`${hubUrl}/api/players`);
   if (!res.ok) {

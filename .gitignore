@@ -36,6 +36,11 @@ yarn-error.log*
 # database
 prisma/dev.db
 prisma/dev.db-journal
+prisma/prisma/
+
+# python
+__pycache__/
+*.py[cod]
 
 # collector exports (keep examples)
 data/*

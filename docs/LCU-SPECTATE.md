@@ -49,7 +49,7 @@ Open the **League client** and log in. In a second terminal:
 npm run lcu:watch
 ```
 
-**Start `lcu:watch` before champion select** if you want the full competitive pick/ban order (20 turns: 6 bans + 10 picks, same as the hub Drafter). The collector polls `/lol-champ-select/v1/session` while `gameflow` is `ChampSelect` and logs each completed ban/pick. Those rows are attached to the match when EOG is saved (instead of the approximate post-game list).
+**Start `lcu:watch` before champion select** if you want the full competitive pick/ban order (20 turns: 6 bans + 10 picks, same as the hub draft tool). The collector polls `/lol-champ-select/v1/session` while `gameflow` is `ChampSelect` and logs each completed ban/pick. Those rows are attached to the match when EOG is saved (instead of the approximate post-game list).
 
 Requirements for draft capture:
 

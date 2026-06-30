@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
 import type { MatchScoreboardData } from "@/lib/match-scoreboard";
+import type { PickBanRow } from "@/lib/matches/pick-ban-meta";
+import type { Side } from "@prisma/client";
+import { MatchPickBansPanel } from "./MatchPickBansPanel";
 import { MatchScoreboard } from "./MatchScoreboard";
 
 type EnemyPlayerEdit = {
@@ -35,6 +38,9 @@ export function MatchDetailModal({
   const [savingEnemy, setSavingEnemy] = useState(false);
   const [showEnemyEditor, setShowEnemyEditor] = useState(false);
   const [enemyPlayers, setEnemyPlayers] = useState<EnemyPlayerEdit[]>([]);
+  const [pickBans, setPickBans] = useState<PickBanRow[]>([]);
+  const [matchSource, setMatchSource] = useState<string | null>(null);
+  const [ourSide, setOurSide] = useState<Side>("BLUE");
   const [error, setError] = useState("");
 
   const close = useCallback(() => onClose(), [onClose]);
@@ -55,12 +61,18 @@ export function MatchDetailModal({
         const body = (await res.json()) as {
           scoreboard?: MatchScoreboardData;
           enemyPlayers?: EnemyPlayerEdit[];
+          pickBans?: PickBanRow[];
+          source?: string | null;
+          ourSide?: Side;
           error?: string;
         };
         if (!res.ok) throw new Error(body.error ?? "Failed to load match");
         if (!cancelled && body.scoreboard) {
           setData(body.scoreboard);
           setEnemyPlayers(body.enemyPlayers ?? []);
+          setPickBans(body.pickBans ?? []);
+          setMatchSource(body.source ?? null);
+          setOurSide(body.ourSide ?? "BLUE");
         }
       })
       .catch((e) => {
@@ -117,11 +129,17 @@ export function MatchDetailModal({
       const body = (await res.json().catch(() => null)) as {
         scoreboard?: MatchScoreboardData;
         enemyPlayers?: EnemyPlayerEdit[];
+        pickBans?: PickBanRow[];
+        source?: string | null;
+        ourSide?: Side;
         error?: string;
       } | null;
       if (!res.ok) throw new Error(body?.error ?? "Failed to save enemy names");
       if (body?.scoreboard) setData(body.scoreboard);
       if (body?.enemyPlayers) setEnemyPlayers(body.enemyPlayers);
+      if (body?.pickBans) setPickBans(body.pickBans);
+      if (body?.source !== undefined) setMatchSource(body.source);
+      if (body?.ourSide) setOurSide(body.ourSide);
       setShowEnemyEditor(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save enemy names");
@@ -292,6 +310,15 @@ export function MatchDetailModal({
               {loading && (
                 <p className="mb-2 text-center text-xs text-muted">Updating…</p>
               )}
+              <div className="mb-4">
+                <MatchPickBansPanel
+                  matchId={matchId}
+                  ourSide={ourSide}
+                  source={matchSource}
+                  initialPickBans={pickBans}
+                  onSaved={setPickBans}
+                />
+              </div>
               <MatchScoreboard data={data} />
             </>
           )}

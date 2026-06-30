@@ -11,6 +11,7 @@ import {
   ManualMatchForm,
   type ManualMatchFormInitial,
 } from "@/components/matches/ManualMatchForm";
+import { MatchPickBansPanel } from "@/components/matches/MatchPickBansPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -145,7 +146,21 @@ export default async function EditMatchPage({
           Back to matches
         </Link>
       </PageHeader>
-      <ManualMatchForm players={players} matchId={id} initial={initial} />
+      <MatchPickBansPanel
+        matchId={id}
+        ourSide={match.side}
+        source={match.source}
+        initialPickBans={match.pickBans.map((pb) => ({
+          id: pb.id,
+          champion: pb.champion,
+          type: pb.type,
+          side: pb.side,
+          order: pb.order,
+        }))}
+      />
+      <div className="mt-8">
+        <ManualMatchForm players={players} matchId={id} initial={initial} />
+      </div>
     </div>
   );
 }

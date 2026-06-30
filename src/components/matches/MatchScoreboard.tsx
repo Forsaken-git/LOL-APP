@@ -5,10 +5,8 @@ import { formatDateTime24Long } from "@/lib/datetime";
 import { championImageUrl } from "@/lib/champions";
 import { layoutBuildForScoreboard } from "@/lib/build-normalize";
 import {
-  itemImageUrl,
   keystoneIconUrl,
   runeStyleIconUrl,
-  summonerSpellImageUrl,
 } from "@/lib/items";
 import {
   formatDamage,
@@ -17,6 +15,13 @@ import {
   type ScoreboardRow,
   type TeamScoreboard,
 } from "@/lib/match-scoreboard";
+import {
+  ScoreboardItemIcon,
+  ScoreboardRuneIcon,
+  ScoreboardSpellIcon,
+  useScoreboardCatalogs,
+  type ScoreboardCatalogs,
+} from "@/components/matches/ScoreboardItemIcon";
 
 function runeIcons(row: ScoreboardRow): {
   primary: string | null;
@@ -81,14 +86,30 @@ function csPerMin(row: ScoreboardRow, durationSec: number | null): string {
   return cspm.toFixed(1);
 }
 
+/** Scoreboard icon sizes — fixed square slots so table cells cannot squash them */
+const SB_ITEM = "size-10 shrink-0 rounded object-cover";
+const SB_ICON = "size-9 shrink-0 rounded object-cover";
+const SB_EMPTY = "size-10 shrink-0 rounded border border-dashed border-white/10 bg-white/[0.02]";
+const SB_EMPTY_SM = "size-9 shrink-0 rounded border border-dashed border-white/10 bg-white/[0.02]";
+const SB_CHAMP = "size-11 shrink-0 rounded object-cover";
+const SB_ROW = "min-h-[6.25rem]";
+const SB_STACK = "flex min-h-[3.75rem] flex-col items-center justify-center gap-1.5";
+const SB_ITEMS_COL = "w-[8.5rem] min-w-[8.5rem] px-1.5 py-2";
+const SB_ICON_COL = "w-11 min-w-11 px-1 py-2";
+const SB_RUNE_COL = "w-12 min-w-12 px-1 py-2";
+const SB_SPELL_COL = "w-12 min-w-12 px-1 py-2";
+const SB_STAT_COL = "w-14 min-w-14 px-2 py-2 whitespace-nowrap";
+
 function TeamTable({
   team,
   title,
   durationSec,
+  catalogs,
 }: {
   team: TeamScoreboard;
   title: string;
   durationSec: number | null;
+  catalogs: ScoreboardCatalogs;
 }) {
   const isMirrored = team.side === "BLUE";
   const tint = team.side === "BLUE" ? "border-sky-500/25" : "border-rose-500/25";
@@ -105,20 +126,20 @@ function TeamTable({
           {team.won == null ? "—" : team.won ? "Victory" : "Defeat"}
         </p>
       </div>
-      <div className="overflow-hidden">
-        <table className="w-full table-fixed text-xs">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[52rem] text-xs">
           <thead className="bg-white/[0.03] text-[10px] uppercase tracking-wide text-muted">
             {isMirrored ? (
               <tr>
-                <th className="px-2 py-2 text-right">DMG</th>
-                <th className="px-2 py-2 text-right">CS/min</th>
-                <th className="px-2 py-2 text-right">KP%</th>
-                <th className="px-2 py-2 text-right">KDA</th>
-                <th className="px-2 py-2 text-center">Quest</th>
-                <th className="px-2 py-2 text-center">Trinket</th>
-                <th className="px-2 py-2 text-center">Items</th>
-                <th className="px-2 py-2 text-center">Runes</th>
-                <th className="px-2 py-2 text-center">Spells</th>
+                <th className={`${SB_STAT_COL} text-right`}>DMG</th>
+                <th className={`${SB_STAT_COL} text-right`}>CS/min</th>
+                <th className={`${SB_STAT_COL} text-right`}>KP%</th>
+                <th className={`${SB_STAT_COL} text-right`}>KDA</th>
+                <th className={`${SB_ICON_COL} text-center`}>Quest</th>
+                <th className={`${SB_ICON_COL} text-center`}>Trinket</th>
+                <th className={`${SB_ITEMS_COL} text-center`}>Items</th>
+                <th className={`${SB_RUNE_COL} text-center`}>Runes</th>
+                <th className={`${SB_SPELL_COL} text-center`}>Spells</th>
                 <th className={`${playerColClass} text-right`}>Player</th>
                 <th className={`${champColClass} text-right`}>Champ</th>
               </tr>
@@ -126,15 +147,15 @@ function TeamTable({
               <tr>
                 <th className={`${champColClass} text-left`}>Champ</th>
                 <th className={`${playerColClass} text-left`}>Player</th>
-                <th className="px-2 py-2 text-center">Spells</th>
-                <th className="px-2 py-2 text-center">Runes</th>
-                <th className="px-2 py-2 text-center">Items</th>
-                <th className="px-2 py-2 text-center">Trinket</th>
-                <th className="px-2 py-2 text-center">Quest</th>
-                <th className="px-2 py-2 text-right">KDA</th>
-                <th className="px-2 py-2 text-right">KP%</th>
-                <th className="px-2 py-2 text-right">CS/min</th>
-                <th className="px-2 py-2 text-right">DMG</th>
+                <th className={`${SB_SPELL_COL} text-center`}>Spells</th>
+                <th className={`${SB_RUNE_COL} text-center`}>Runes</th>
+                <th className={`${SB_ITEMS_COL} text-center`}>Items</th>
+                <th className={`${SB_ICON_COL} text-center`}>Trinket</th>
+                <th className={`${SB_ICON_COL} text-center`}>Quest</th>
+                <th className={`${SB_STAT_COL} text-right`}>KDA</th>
+                <th className={`${SB_STAT_COL} text-right`}>KP%</th>
+                <th className={`${SB_STAT_COL} text-right`}>CS/min</th>
+                <th className={`${SB_STAT_COL} text-right`}>DMG</th>
               </tr>
             )}
           </thead>
@@ -154,83 +175,103 @@ function TeamTable({
                     scoreboardRole: row.role,
                   },
                 );
-              const spell1 = row.spell1Id ? summonerSpellImageUrl(row.spell1Id) : null;
-              const spell2 = row.spell2Id ? summonerSpellImageUrl(row.spell2Id) : null;
-              const runes = runeIcons(row);
-              const keystone = keystoneIcon(row);
+              const spell1 = row.spell1Id ?? null;
+              const spell2 = row.spell2Id ?? null;
+              const keystoneId = row.perks?.slots?.[0] ?? null;
+              const subStyleId = row.perks?.subStyle ?? null;
               return (
                 <tr
                   key={`${row.summonerName}-${idx}`}
-                  className="h-14 border-t border-white/[0.06]"
+                  className={`${SB_ROW} border-t border-white/[0.06]`}
                 >
                   {isMirrored ? (
                     <>
-                      <td className="px-2 py-2 text-right tabular-nums">{formatDamage(row.damage)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{csPerMin(row, durationSec)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{kp(row, team.rows)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{kda(row)}</td>
-                      <td className="px-2 py-2">
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{formatDamage(row.damage)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{csPerMin(row, durationSec)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{kp(row, team.rows)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{kda(row)}</td>
+                      <td className={SB_ICON_COL}>
                         <div className="flex justify-center">
                           {questItemId ? (
-                            <img src={itemImageUrl(questItemId)} alt="" className="mx-auto h-4 w-4 rounded" />
+                            <ScoreboardItemIcon
+                              itemId={questItemId}
+                              catalog={catalogs.items}
+                              className={SB_ICON}
+                            />
                           ) : (
-                            <span className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
+                      <td className={SB_ICON_COL}>
                         <div className="flex justify-center">
                           {trinketItemId ? (
-                            <img src={itemImageUrl(trinketItemId)} alt="" className="mx-auto h-4 w-4 rounded" />
+                            <ScoreboardItemIcon
+                              itemId={trinketItemId}
+                              catalog={catalogs.items}
+                              className={SB_ICON}
+                            />
                           ) : (
-                            <span className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="grid grid-cols-3 gap-1">
+                      <td className={SB_ITEMS_COL}>
+                        <div className="mx-auto grid w-fit grid-cols-3 gap-1.5">
                           {Array.from({ length: 6 }).map((_, slotIndex) => {
                             const id = coreItems[slotIndex];
                             return id ? (
-                              <img
+                              <ScoreboardItemIcon
                                 key={`it-${row.summonerName}-${id}-${slotIndex}`}
-                                src={itemImageUrl(id)}
-                                alt=""
-                                className="h-4 w-4 rounded"
+                                itemId={id}
+                                catalog={catalogs.items}
+                                className={SB_ITEM}
                               />
                             ) : (
                               <span
                                 key={`empty-${row.summonerName}-${slotIndex}`}
-                                className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]"
+                                className={SB_EMPTY}
                               />
                             );
                           })}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex h-10 flex-col items-center justify-center gap-1">
-                          {keystone ? (
-                            <img src={keystone} alt={keystoneLabel(row)} className="h-4 w-4 rounded" />
-                          ) : (
-                            <span
-                              title={keystoneLabel(row)}
-                              className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]"
-                            />
-                          )}
-                          {runes.secondary ? (
-                            <img src={runes.secondary} alt="" className="h-4 w-4 rounded" />
-                          ) : (
-                            <span className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]" />
-                          )}
+                      <td className={SB_RUNE_COL}>
+                        <div className={SB_STACK}>
+                          <ScoreboardRuneIcon
+                            runeId={keystoneId}
+                            imageUrl={keystoneIcon(row)}
+                            catalog={catalogs.runes}
+                            fallbackName={keystoneLabel(row)}
+                            className={SB_ICON}
+                          />
+                          <ScoreboardRuneIcon
+                            runeId={subStyleId}
+                            imageUrl={runeIcons(row).secondary}
+                            catalog={catalogs.runes}
+                            className={SB_ICON}
+                          />
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex h-10 flex-col items-center justify-center gap-1">
-                          {spell1 ? <img src={spell1} alt="" className="h-4 w-4 rounded" /> : <span>—</span>}
-                          {spell2 ? (
-                            <img src={spell2} alt="" className="h-4 w-4 rounded" />
+                      <td className={SB_SPELL_COL}>
+                        <div className={SB_STACK}>
+                          {spell1 ? (
+                            <ScoreboardSpellIcon
+                              spellId={spell1}
+                              catalog={catalogs.spells}
+                              className={SB_ICON}
+                            />
                           ) : (
-                            <span className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span>—</span>
+                          )}
+                          {spell2 ? (
+                            <ScoreboardSpellIcon
+                              spellId={spell2}
+                              catalog={catalogs.spells}
+                              className={SB_ICON}
+                            />
+                          ) : (
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
@@ -242,7 +283,7 @@ function TeamTable({
                           <img
                             src={championImageUrl(row.champion)}
                             alt={row.champion}
-                            className="h-8 w-8 rounded object-cover"
+                            className={SB_CHAMP}
                           />
                         </div>
                       </td>
@@ -254,82 +295,102 @@ function TeamTable({
                           <img
                             src={championImageUrl(row.champion)}
                             alt={row.champion}
-                            className="h-8 w-8 rounded object-cover"
+                            className={SB_CHAMP}
                           />
                         </div>
                       </td>
                       <td className={`${playerColClass} font-medium text-foreground truncate`}>
                         {row.summonerName}
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex h-10 flex-col items-center justify-center gap-1">
-                          {spell1 ? <img src={spell1} alt="" className="h-4 w-4 rounded" /> : <span>—</span>}
-                          {spell2 ? (
-                            <img src={spell2} alt="" className="h-4 w-4 rounded" />
-                          ) : (
-                            <span className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2">
-                        <div className="flex h-10 flex-col items-center justify-center gap-1">
-                          {keystone ? (
-                            <img src={keystone} alt={keystoneLabel(row)} className="h-4 w-4 rounded" />
-                          ) : (
-                            <span
-                              title={keystoneLabel(row)}
-                              className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]"
+                      <td className={SB_SPELL_COL}>
+                        <div className={SB_STACK}>
+                          {spell1 ? (
+                            <ScoreboardSpellIcon
+                              spellId={spell1}
+                              catalog={catalogs.spells}
+                              className={SB_ICON}
                             />
-                          )}
-                          {runes.secondary ? (
-                            <img src={runes.secondary} alt="" className="h-4 w-4 rounded" />
                           ) : (
-                            <span className="h-4 w-4 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span>—</span>
+                          )}
+                          {spell2 ? (
+                            <ScoreboardSpellIcon
+                              spellId={spell2}
+                              catalog={catalogs.spells}
+                              className={SB_ICON}
+                            />
+                          ) : (
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="grid grid-cols-3 gap-1">
+                      <td className={SB_RUNE_COL}>
+                        <div className={SB_STACK}>
+                          <ScoreboardRuneIcon
+                            runeId={keystoneId}
+                            imageUrl={keystoneIcon(row)}
+                            catalog={catalogs.runes}
+                            fallbackName={keystoneLabel(row)}
+                            className={SB_ICON}
+                          />
+                          <ScoreboardRuneIcon
+                            runeId={subStyleId}
+                            imageUrl={runeIcons(row).secondary}
+                            catalog={catalogs.runes}
+                            className={SB_ICON}
+                          />
+                        </div>
+                      </td>
+                      <td className={SB_ITEMS_COL}>
+                        <div className="mx-auto grid w-fit grid-cols-3 gap-1.5">
                           {Array.from({ length: 6 }).map((_, slotIndex) => {
                             const id = coreItems[slotIndex];
                             return id ? (
-                              <img
+                              <ScoreboardItemIcon
                                 key={`it-${row.summonerName}-${id}-${slotIndex}`}
-                                src={itemImageUrl(id)}
-                                alt=""
-                                className="h-4 w-4 rounded"
+                                itemId={id}
+                                catalog={catalogs.items}
+                                className={SB_ITEM}
                               />
                             ) : (
                               <span
                                 key={`empty-${row.summonerName}-${slotIndex}`}
-                                className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]"
+                                className={SB_EMPTY}
                               />
                             );
                           })}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
+                      <td className={SB_ICON_COL}>
                         <div className="flex justify-center">
                           {trinketItemId ? (
-                            <img src={itemImageUrl(trinketItemId)} alt="" className="mx-auto h-4 w-4 rounded" />
+                            <ScoreboardItemIcon
+                              itemId={trinketItemId}
+                              catalog={catalogs.items}
+                              className={SB_ICON}
+                            />
                           ) : (
-                            <span className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2">
+                      <td className={SB_ICON_COL}>
                         <div className="flex justify-center">
                           {questItemId ? (
-                            <img src={itemImageUrl(questItemId)} alt="" className="mx-auto h-4 w-4 rounded" />
+                            <ScoreboardItemIcon
+                              itemId={questItemId}
+                              catalog={catalogs.items}
+                              className={SB_ICON}
+                            />
                           ) : (
-                            <span className="h-5 w-5 rounded border border-dashed border-white/10 bg-white/[0.02]" />
+                            <span className={SB_EMPTY_SM} />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{kda(row)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{kp(row, team.rows)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{csPerMin(row, durationSec)}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{formatDamage(row.damage)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{kda(row)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{kp(row, team.rows)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{csPerMin(row, durationSec)}</td>
+                      <td className={`${SB_STAT_COL} text-right tabular-nums`}>{formatDamage(row.damage)}</td>
                     </>
                   )}
                 </tr>
@@ -345,6 +406,7 @@ function TeamTable({
 export function MatchScoreboard({ data }: { data: MatchScoreboardData }) {
   const played = parseISO(data.playedAt);
   const duration = formatGameDuration(data.gameDurationSec);
+  const catalogs = useScoreboardCatalogs();
 
   return (
     <div className="w-full space-y-3 overflow-hidden rounded-lg border border-white/10 bg-[#12141b] p-3 text-foreground">
@@ -360,8 +422,8 @@ export function MatchScoreboard({ data }: { data: MatchScoreboardData }) {
         </p>
       </div>
       <div className="grid gap-3 2xl:grid-cols-2">
-        <TeamTable team={data.blue} title="Blue Team" durationSec={data.gameDurationSec} />
-        <TeamTable team={data.red} title="Red Team" durationSec={data.gameDurationSec} />
+        <TeamTable team={data.blue} title="Blue Team" durationSec={data.gameDurationSec} catalogs={catalogs} />
+        <TeamTable team={data.red} title="Red Team" durationSec={data.gameDurationSec} catalogs={catalogs} />
       </div>
     </div>
   );

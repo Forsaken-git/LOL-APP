@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 
-export const DEFAULT_HUB = "https://lol-app-production.up.railway.app";
+export const DEFAULT_HUB = "http://localhost:3000";
 
 export function loadDotEnv(): void {
   const path = resolve(".env");
@@ -23,25 +23,9 @@ export function loadDotEnv(): void {
   }
 }
 
-export function resolveHubEnv(): { hubUrl: string; apiKey: string } {
+export function localHubUrl(): string {
   loadDotEnv();
-
-  let hubUrl = (process.env.HUB_URL ?? DEFAULT_HUB).trim().replace(/\/$/, "");
-  const apiKey = process.env.INGEST_API_KEY ?? "";
-
-  if (!/^https?:\/\//i.test(hubUrl)) {
-    console.warn(
-      `HUB_URL="${hubUrl}" is not a web address — using ${DEFAULT_HUB}`,
-    );
-    hubUrl = DEFAULT_HUB;
-  }
-
-  if (!apiKey) {
-    throw new Error(
-      "Missing INGEST_API_KEY. Add it to .env or run:\n" +
-        '  $env:INGEST_API_KEY="your-key"; npm run sync:remote',
-    );
-  }
-
-  return { hubUrl, apiKey };
+  const hubUrl = (process.env.HUB_URL ?? DEFAULT_HUB).trim().replace(/\/$/, "");
+  if (!/^https?:\/\//i.test(hubUrl)) return DEFAULT_HUB;
+  return hubUrl;
 }

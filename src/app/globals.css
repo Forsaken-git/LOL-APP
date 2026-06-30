@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #08090d;
-  --foreground: #eef0f6;
-  --muted: #9499ad;
-  --faint: #5c6175;
-  --accent: #8b7cf6;
-  --accent-bright: #a89bff;
-  --accent-dim: #5b4fc7;
-  --accent-glow: rgba(139, 124, 246, 0.35);
-  --surface: #101218;
-  --surface-elevated: #161922;
-  --inset: #0c0d12;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
+  --background: #0d0d0d;
+  --foreground: #d1c7c1;
+  --muted: #9a8f89;
+  --faint: #6b635d;
+  --accent: #a68b7c;
+  --accent-bright: #c4a99a;
+  --accent-dim: #8b7264;
+  --accent-glow: rgba(166, 139, 124, 0.35);
+  --surface: #141414;
+  --surface-elevated: #1a1a1a;
+  --inset: #0f0f0f;
+  --border: rgba(166, 139, 124, 0.12);
+  --border-strong: rgba(166, 139, 124, 0.22);
   --win: #34d399;
   --loss: #fb7185;
 }
@@ -31,21 +31,22 @@
   --color-inset: var(--inset);
   --color-border: var(--border);
   --font-sans: var(--font-jakarta);
+  --font-serif: var(--font-cormorant);
   --font-mono: var(--font-jetbrains);
 }
 
 body {
   background: var(--background);
   background-image:
-    radial-gradient(ellipse 100% 80% at 0% -30%, rgba(139, 124, 246, 0.12), transparent 50%),
-    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(56, 189, 248, 0.06), transparent 45%),
-    linear-gradient(180deg, var(--background) 0%, #0a0b10 100%);
+    radial-gradient(ellipse 100% 80% at 0% -30%, rgba(166, 139, 124, 0.08), transparent 50%),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(166, 139, 124, 0.04), transparent 45%),
+    linear-gradient(180deg, var(--background) 0%, #0a0a0a 100%);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 ::selection {
-  background: rgba(139, 124, 246, 0.35);
+  background: rgba(166, 139, 124, 0.35);
   color: var(--foreground);
 }
 
@@ -71,18 +72,18 @@ textarea:focus {
 
 button.btn-primary {
   background: linear-gradient(135deg, var(--accent-bright) 0%, var(--accent-dim) 100%);
-  color: #fff;
+  color: #0d0d0d;
   font-weight: 600;
   border-radius: 0.625rem;
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   border: none;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 20px rgba(139, 124, 246, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 20px rgba(166, 139, 124, 0.15);
   transition: transform 0.12s, box-shadow 0.12s, opacity 0.12s;
 }
 
 button.btn-primary:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 28px rgba(139, 124, 246, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 0 28px rgba(166, 139, 124, 0.25);
 }
 
 button.btn-primary:active {
@@ -106,9 +107,9 @@ button.btn-ghost {
 }
 
 button.btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(166, 139, 124, 0.06);
   color: var(--foreground);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(166, 139, 124, 0.35);
 }
 
 .champion-icon {
@@ -127,7 +128,7 @@ button.btn-ghost:hover {
 }
 
 .link-accent:hover {
-  color: #c4b8ff;
+  color: #dcc8bc;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -165,24 +166,24 @@ button.btn-ghost:hover {
   appearance: none;
   cursor: pointer;
   border-radius: 0.375rem;
-  border: 1px solid #2a2f3c;
+  border: 1px solid rgba(166, 139, 124, 0.18);
   background: transparent;
   color: inherit;
   transition: border-color 0.15s, background-color 0.15s;
 }
 
 .schedule-slot:hover {
-  border-color: #353b4a;
+  border-color: rgba(166, 139, 124, 0.32);
 }
 
 .schedule-slot[aria-pressed="true"],
 .schedule-slot--filled {
-  border-color: #2f5f4a;
-  background: #1a3d30;
+  border-color: rgba(166, 139, 124, 0.45);
+  background: rgba(166, 139, 124, 0.12);
 }
 
 .schedule-slot[aria-pressed="true"]:hover {
-  background: #1f4636;
+  background: rgba(166, 139, 124, 0.18);
 }
 
 .schedule-slot--heatmap {
@@ -193,7 +194,7 @@ button.btn-ghost:hover {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  color: #8fb8a5;
+  color: var(--accent-bright);
 }
 
 @media (max-width: 639px) {

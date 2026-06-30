@@ -8,6 +8,7 @@ import { championDisplayName } from "@/lib/champions";
 import { validateIngestMatch } from "@/lib/ingest/collector-validate";
 import { normalizeGameType } from "@/lib/ingest/normalize-game-type";
 import { ensureOurTeamPickBans } from "@/lib/matches/sync-our-pick-bans";
+import { tryAutoLinkDraftToMatch } from "@/lib/matches/sync-draft-match-pick-bans";
 import { dedupeActivePlayers } from "@/lib/player-dedupe";
 import { prisma } from "@/lib/prisma";
 import { isTeamRosterMember, rosterEntryFor } from "@/lib/team-roster";
@@ -457,6 +458,7 @@ async function upsertMatch(
   }
 
   await ensureOurTeamPickBans(row.id);
+  await tryAutoLinkDraftToMatch(row.id);
 
   return { created, id: row.id };
 }

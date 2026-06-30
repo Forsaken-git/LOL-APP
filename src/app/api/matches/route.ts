@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ourTeamChampionNames } from "@/lib/matches/our-team-champions";
+import { matchHasCapturedPickBans } from "@/lib/matches/pick-ban-capture";
 import { createManualMatch } from "@/lib/matches/create-manual";
 import { parseManualMatchBody } from "@/lib/matches/parse-body";
 
@@ -15,6 +16,7 @@ export async function GET() {
       opponent: true,
       side: true,
       result: true,
+      source: true,
       draft: { select: { id: true } },
       participants: {
         select: {
@@ -24,6 +26,7 @@ export async function GET() {
           player: { select: { active: true } },
         },
       },
+      pickBans: { select: { champion: true, type: true, side: true, order: true } },
     },
   });
 
@@ -35,7 +38,9 @@ export async function GET() {
       opponent: m.opponent,
       side: m.side,
       result: m.result,
+      source: m.source,
       linkedDraftId: m.draft?.id ?? null,
+      hasCapturedPickBans: matchHasCapturedPickBans(m.source, m.pickBans),
       championPool: Array.from(
         new Set(ourTeamChampionNames(m.participants, m.side)),
       ),

@@ -1,4 +1,3 @@
-import { startOfDay } from "date-fns";
 import { formatDateTime24Weekday } from "@/lib/datetime";
 import { prisma } from "@/lib/prisma";
 import { computeTeamStats } from "@/lib/stats";
@@ -6,6 +5,7 @@ import { buildEncounterSummaries } from "@/lib/match-encounters";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
+import { NextEventCountdown } from "@/components/dashboard/NextEventCountdown";
 import { OverviewCalendar } from "@/components/dashboard/OverviewCalendar";
 import { RecentMatches } from "@/components/dashboard/RecentMatches";
 import { SyncStatus } from "@/components/dashboard/SyncStatus";
@@ -13,6 +13,7 @@ import { SyncStatus } from "@/components/dashboard/SyncStatus";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const now = new Date();
   const [playedMatches, recentMatchRows, upcomingEvents] = await Promise.all([
     prisma.match.findMany({
       where: { status: "PLAYED" },
@@ -31,11 +32,13 @@ export default async function DashboardPage() {
       },
     }),
     prisma.event.findMany({
-      where: { startAt: { gte: startOfDay(new Date()) } },
+      where: { startAt: { gte: now } },
       orderBy: { startAt: "asc" },
       take: 4,
     }),
   ]);
+
+  const nextEvent = upcomingEvents[0] ?? null;
 
   const stats = computeTeamStats(playedMatches);
   const recentEncounters = buildEncounterSummaries(
@@ -52,10 +55,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader
-        title="Team Overview"
-        description="CWL & Titans record, side win rates, and recent activity"
-      >
+      <PageHeader title="Team Overview">
         <SyncStatus />
       </PageHeader>
 
@@ -110,11 +110,18 @@ export default async function DashboardPage() {
         </Card>
 
         <Card title="Upcoming" className="lg:col-span-1">
+          {nextEvent ? (
+            <NextEventCountdown
+              title={nextEvent.title}
+              startAt={nextEvent.startAt.toISOString()}
+              dateLabel={formatDateTime24Weekday(nextEvent.startAt)}
+            />
+          ) : null}
           {upcomingEvents.length === 0 ? (
             <p className="text-sm text-muted">Nothing scheduled.</p>
           ) : (
             <ul className="space-y-3">
-              {upcomingEvents.map((e) => (
+              {(nextEvent ? upcomingEvents.slice(1) : upcomingEvents).map((e) => (
                 <li key={e.id} className="text-sm">
                   <p className="font-medium text-foreground">{e.title}</p>
                   <p className="text-muted">

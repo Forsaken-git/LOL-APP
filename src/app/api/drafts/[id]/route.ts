@@ -6,6 +6,7 @@ import {
   serializeDraftEntries,
   type DraftEntry,
 } from "@/lib/draft";
+import { maybeSyncDraftPickBansToMatch } from "@/lib/matches/sync-draft-match-pick-bans";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -81,6 +82,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
   if (body.notes !== undefined) data.notes = body.notes?.trim() || null;
 
   const hasEntriesPatch = Array.isArray(body.entries);
+  const forcePickBanSync = body.forcePickBanSync === true;
   let resolvedEntries = parseDraftEntries(existing.pickBans);
 
   if (hasEntriesPatch) {
@@ -128,23 +130,21 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
     data.matchId = targetMatchId;
   }
 
-  const shouldSyncMatchPickBans =
-    !!targetMatchId && (hasEntriesPatch || body.matchId !== undefined);
+  const shouldAttemptPickBanSync =
+    !!targetMatchId &&
+    resolvedEntries.length > 0 &&
+    (hasEntriesPatch || body.matchId !== undefined);
+
+  let pickBanSync: "synced" | "preserved" | "skipped" = "skipped";
 
   const draft = await prisma.$transaction(async (tx) => {
-    if (shouldSyncMatchPickBans && targetMatchId) {
-      await tx.pickBan.deleteMany({ where: { matchId: targetMatchId } });
-      if (resolvedEntries.length > 0) {
-        await tx.pickBan.createMany({
-          data: resolvedEntries.map((e, i) => ({
-            matchId: targetMatchId!,
-            champion: e.champion,
-            type: e.type,
-            side: e.side,
-            order: e.order ?? i,
-          })),
-        });
-      }
+    if (shouldAttemptPickBanSync && targetMatchId) {
+      pickBanSync = await maybeSyncDraftPickBansToMatch(
+        tx,
+        targetMatchId,
+        resolvedEntries,
+        { force: forcePickBanSync },
+      );
     }
 
     return tx.draftSession.update({
@@ -152,7 +152,7 @@ export async function PATCH(request: Request, ctx: RouteCtx) {
       data,
     });
   });
-  return NextResponse.json(serializeDraft(draft));
+  return NextResponse.json({ ...serializeDraft(draft), pickBanSync });
 }
 
 export async function DELETE(_request: Request, ctx: RouteCtx) {

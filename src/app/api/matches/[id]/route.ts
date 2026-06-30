@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import type { PickBanType, Side } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { deleteMatchById } from "@/lib/match-delete";
 import { buildMatchScoreboard } from "@/lib/match-scoreboard";
 import { parseManualMatchBody } from "@/lib/matches/parse-body";
 import { updateManualMatch } from "@/lib/matches/create-manual";
+import { describePickBanCapture } from "@/lib/matches/pick-ban-meta";
+import { replaceMatchPickBans } from "@/lib/matches/replace-pick-bans";
 
 export async function GET(
   _request: Request,
@@ -41,7 +44,23 @@ export async function GET(
       visionScore: p.visionScore,
     }));
 
-  return NextResponse.json({ scoreboard, enemyPlayers });
+  const pickBans = match.pickBans.map((pb) => ({
+    id: pb.id,
+    champion: pb.champion,
+    type: pb.type,
+    side: pb.side,
+    order: pb.order,
+  }));
+  const pickBanCapture = describePickBanCapture(match.source, pickBans);
+
+  return NextResponse.json({
+    scoreboard,
+    enemyPlayers,
+    source: match.source,
+    ourSide: match.side,
+    pickBans,
+    pickBanCapture,
+  });
 }
 
 export async function DELETE(
@@ -81,11 +100,25 @@ export async function PATCH(
       goldEarned?: number | string | null;
       visionScore?: number | string | null;
     }[];
+    pickBans?: {
+      champion: string;
+      type: PickBanType;
+      side: Side;
+      order: number;
+    }[];
   } | null;
-  const edits = body?.enemyPlayers;
-  if (!Array.isArray(edits) || edits.length === 0) {
+
+  if (!body) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const hasEnemyEdits =
+    Array.isArray(body.enemyPlayers) && body.enemyPlayers.length > 0;
+  const hasPickBanEdits = Array.isArray(body.pickBans);
+
+  if (!hasEnemyEdits && !hasPickBanEdits) {
     return NextResponse.json(
-      { error: "enemyPlayers is required" },
+      { error: "enemyPlayers or pickBans is required" },
       { status: 400 },
     );
   }
@@ -97,41 +130,48 @@ export async function PATCH(
   if (!match) {
     return NextResponse.json({ error: "Match not found" }, { status: 404 });
   }
-  const enemySide = match.side === "BLUE" ? "RED" : "BLUE";
-  const enemyByParticipantId = new Map(
-    match.participants
-      .filter((p) => p.side === enemySide)
-      .map((p) => [p.id, p]),
-  );
-  const toInt = (v: number | string | null | undefined): number | null => {
-    if (v == null || v === "") return null;
-    const n = typeof v === "number" ? v : Number(v);
-    if (!Number.isFinite(n)) return null;
-    return Math.max(0, Math.floor(n));
-  };
 
-  for (const edit of edits) {
-    const part = enemyByParticipantId.get(edit.participantId);
-    if (!part) continue;
-    const name = edit.name.trim();
-    await prisma.matchParticipant.update({
-      where: { id: part.id },
-      data: {
-        champion: edit.champion?.trim() || part.champion,
-        kills: toInt(edit.kills),
-        deaths: toInt(edit.deaths),
-        assists: toInt(edit.assists),
-        cs: toInt(edit.cs),
-        damage: toInt(edit.damage),
-        goldEarned: toInt(edit.goldEarned),
-        visionScore: toInt(edit.visionScore),
-      },
-    });
-    if (name) {
-      await prisma.player.update({
-        where: { id: part.playerId },
-        data: { displayName: name },
+  if (hasPickBanEdits) {
+    await replaceMatchPickBans(id, body.pickBans!);
+  }
+
+  if (hasEnemyEdits) {
+    const enemySide = match.side === "BLUE" ? "RED" : "BLUE";
+    const enemyByParticipantId = new Map(
+      match.participants
+        .filter((p) => p.side === enemySide)
+        .map((p) => [p.id, p]),
+    );
+    const toInt = (v: number | string | null | undefined): number | null => {
+      if (v == null || v === "") return null;
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return null;
+      return Math.max(0, Math.floor(n));
+    };
+
+    for (const edit of body.enemyPlayers!) {
+      const part = enemyByParticipantId.get(edit.participantId);
+      if (!part) continue;
+      const name = edit.name.trim();
+      await prisma.matchParticipant.update({
+        where: { id: part.id },
+        data: {
+          champion: edit.champion?.trim() || part.champion,
+          kills: toInt(edit.kills),
+          deaths: toInt(edit.deaths),
+          assists: toInt(edit.assists),
+          cs: toInt(edit.cs),
+          damage: toInt(edit.damage),
+          goldEarned: toInt(edit.goldEarned),
+          visionScore: toInt(edit.visionScore),
+        },
       });
+      if (name) {
+        await prisma.player.update({
+          where: { id: part.playerId },
+          data: { displayName: name },
+        });
+      }
     }
   }
 
@@ -164,7 +204,22 @@ export async function PATCH(
       visionScore: p.visionScore,
     }));
 
-  return NextResponse.json({ scoreboard, enemyPlayers });
+  const pickBans = updated.pickBans.map((pb) => ({
+    id: pb.id,
+    champion: pb.champion,
+    type: pb.type,
+    side: pb.side,
+    order: pb.order,
+  }));
+
+  return NextResponse.json({
+    scoreboard,
+    enemyPlayers,
+    source: updated.source,
+    ourSide: updated.side,
+    pickBans,
+    pickBanCapture: describePickBanCapture(updated.source, pickBans),
+  });
 }
 
 export async function PUT(
