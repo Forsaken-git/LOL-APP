@@ -29,6 +29,13 @@ export type ParticipationWithMatch = {
   match: { playedAt: Date; result: MatchResult | null; side?: Side };
 };
 
+export type RosterParticipation = {
+  champion: string;
+  side?: Side | null;
+  position?: string | null;
+  match: { playedAt: Date; result: MatchResult | null; side?: Side };
+};
+
 const ROLE_POSITIONS: Record<LoLRole, ReadonlySet<string>> = {
   TOP: new Set(["TOP"]),
   JUNGLE: new Set(["JUNGLE"]),
@@ -49,7 +56,7 @@ const ROLE_POSITIONS: Record<LoLRole, ReadonlySet<string>> = {
 
 /** Drop enemy-side rows and off-role games (e.g. support Zyra on a top main). */
 export function filterParticipationsForPlayerStats<
-  T extends ParticipationWithMatch,
+  T extends { side?: Side | null; position?: string | null; match: { side?: Side } },
 >(parts: T[], teamRole: LoLRole): T[] {
   const allowed = ROLE_POSITIONS[teamRole];
   return parts.filter((p) => {
@@ -181,7 +188,7 @@ export function buildChampionPool(
 
 /** Most recently played champions (unique), newest first. */
 export function recentChampions(
-  parts: ParticipationWithMatch[],
+  parts: { champion: string; match: { playedAt: Date } }[],
   limit = 6,
 ): string[] {
   const sorted = [...parts].sort(
@@ -217,6 +224,47 @@ function resolveAccounts(
     return [{ region: "WEST", summonerName: legacySummonerName }];
   }
   return [];
+}
+
+export function buildPlayerRosterSummary(
+  player: {
+    id: string;
+    displayName: string;
+    summonerName: string | null;
+    teamRole: LoLRole;
+    memberRole: UserRole;
+    active?: boolean;
+    accounts?: {
+      id?: string;
+      region: PlayerAccountEntry["region"];
+      summonerName: string;
+    }[];
+    participations: RosterParticipation[];
+  },
+): PlayerProfile {
+  const participations = filterParticipationsForPlayerStats(
+    player.participations,
+    player.teamRole,
+  );
+  const accounts = resolveAccounts(player.accounts ?? [], player.summonerName);
+  return {
+    id: player.id,
+    displayName: player.displayName,
+    summonerName: primarySummonerName(accounts, player.summonerName),
+    teamRole: player.teamRole,
+    memberRole: player.memberRole,
+    active: player.active ?? true,
+    accounts,
+    totalGames: participations.length,
+    overall: {
+      games: participations.length,
+      wins: 0,
+      losses: 0,
+      winRate: 0,
+    },
+    champions: [],
+    recent: recentChampions(participations),
+  };
 }
 
 export function buildPlayerProfile(

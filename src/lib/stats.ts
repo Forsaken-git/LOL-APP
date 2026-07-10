@@ -9,6 +9,58 @@ export type TeamStats = {
   blue: { total: number; wins: number; winRate: number };
 };
 
+type ResultCount = { result: MatchResult | null; _count: number };
+type SideResultCount = {
+  side: Side;
+  result: MatchResult | null;
+  _count: number;
+};
+
+/** Aggregate team stats from Prisma groupBy rows (avoids loading every match). */
+export function computeTeamStatsFromGroupBy(
+  resultCounts: ResultCount[],
+  sideResultCounts: SideResultCount[],
+): TeamStats {
+  let wins = 0;
+  let losses = 0;
+  for (const row of resultCounts) {
+    if (row.result === "WIN") wins += row._count;
+    else if (row.result === "LOSS") losses += row._count;
+  }
+  const total = wins + losses;
+
+  let blueTotal = 0;
+  let blueWins = 0;
+  let redTotal = 0;
+  let redWins = 0;
+  for (const row of sideResultCounts) {
+    if (row.side === "BLUE") {
+      blueTotal += row._count;
+      if (row.result === "WIN") blueWins += row._count;
+    } else if (row.side === "RED") {
+      redTotal += row._count;
+      if (row.result === "WIN") redWins += row._count;
+    }
+  }
+
+  return {
+    total,
+    wins,
+    losses,
+    winRate: total ? Math.round((wins / total) * 100) : 0,
+    blue: {
+      total: blueTotal,
+      wins: blueWins,
+      winRate: blueTotal ? Math.round((blueWins / blueTotal) * 100) : 0,
+    },
+    red: {
+      total: redTotal,
+      wins: redWins,
+      winRate: redTotal ? Math.round((redWins / redTotal) * 100) : 0,
+    },
+  };
+}
+
 export function computeTeamStats(
   matches: Pick<Match, "result" | "side">[],
 ): TeamStats {

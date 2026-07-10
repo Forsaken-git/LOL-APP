@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/Badge";
 import { formatDateTime24 } from "@/lib/datetime";
 import { Card } from "@/components/ui/Card";
 import { matchUsesSessionGrouping } from "@/lib/competitions";
-import type { MatchScoreboardData } from "@/lib/match-scoreboard";
 import { MatchDetailModal } from "./MatchDetailModal";
 
 export type MatchListItem = {
@@ -17,7 +16,6 @@ export type MatchListItem = {
   status?: "SCHEDULED" | "PLAYED";
   side: "BLUE" | "RED";
   gameType: string;
-  scoreboard: MatchScoreboardData;
 };
 
 type MatchSession = {
@@ -142,7 +140,6 @@ function MatchRow({
 
 export function MatchesList({ matches }: { matches: MatchListItem[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
-  const openMatch = matches.find((m) => m.id === openId);
   const entries = buildMatchListEntries(matches);
   const [openSessions, setOpenSessions] = useState<Set<string>>(
     () => new Set(),
@@ -216,11 +213,7 @@ export function MatchesList({ matches }: { matches: MatchListItem[] }) {
         )}
       </div>
 
-      <MatchDetailModal
-        matchId={openId}
-        initialData={openMatch?.scoreboard}
-        onClose={() => setOpenId(null)}
-      />
+      <MatchDetailModal matchId={openId} onClose={() => setOpenId(null)} />
     </>
   );
 }

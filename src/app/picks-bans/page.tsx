@@ -4,13 +4,26 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { championDisplayName, championImageUrl } from "@/lib/champions";
 import { summarizePickBanSources } from "@/lib/matches/pick-ban-aggregation";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function PicksBansPage() {
   const [matchPickBans, drafts, playedMatchesCount] = await Promise.all([
     prisma.pickBan.findMany({
-      where: { match: { is: {} } },
-      include: { match: true },
+      where: { match: { status: "PLAYED" } },
+      select: {
+        champion: true,
+        type: true,
+        side: true,
+        matchId: true,
+        match: {
+          select: {
+            side: true,
+            opponent: true,
+            league: true,
+            playedAt: true,
+          },
+        },
+      },
     }),
     prisma.draftSession.findMany({
       select: {

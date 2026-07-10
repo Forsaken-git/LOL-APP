@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { buildMatchScoreboard } from "@/lib/match-scoreboard";
 import { isCompetitionId, matchWhereForCompetition } from "@/lib/competitions";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -8,7 +7,9 @@ import { Suspense } from "react";
 import { MatchesFilter } from "@/components/matches/MatchesFilter";
 import { MatchesList } from "@/components/matches/MatchesList";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
+
+const MATCHES_LIST_LIMIT = 50;
 
 export default async function MatchesPage({
   searchParams,
@@ -24,13 +25,20 @@ export default async function MatchesPage({
       : undefined;
 
   const matches = await prisma.match.findMany({
-      where,
-      orderBy: { playedAt: "desc" },
-      include: {
-        participants: { include: { player: true } },
-        pickBans: { orderBy: { order: "asc" } },
-      },
-    });
+    where,
+    orderBy: { playedAt: "desc" },
+    take: MATCHES_LIST_LIMIT,
+    select: {
+      id: true,
+      playedAt: true,
+      league: true,
+      opponent: true,
+      result: true,
+      status: true,
+      side: true,
+      gameType: true,
+    },
+  });
 
   const filterCurrent =
     competition && isCompetitionId(competition) ? competition : undefined;
@@ -44,7 +52,6 @@ export default async function MatchesPage({
     status: m.status,
     side: m.side,
     gameType: m.gameType,
-    scoreboard: buildMatchScoreboard(m),
   }));
 
   return (

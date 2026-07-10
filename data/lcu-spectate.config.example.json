@@ -1,0 +1,9 @@
+{
+  "hubUrl": "https://lol-app-blush.vercel.app",
+  "syncRosterFromHub": true,
+  "league": "Scrim",
+  "gameType": "SCRIM",
+  "platformId": "EUW1",
+  "pushOnComplete": true,
+  "captureChampSelectDraft": true
+}

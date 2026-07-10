@@ -1,8 +1,18 @@
 import { NextResponse } from "next/server";
 import { deletePlayer } from "@/lib/players/delete-player";
+import { loadPlayerProfileById } from "@/lib/players/load-player-profile";
 import { setPlayerActive } from "@/lib/players/set-active";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const profile = await loadPlayerProfileById(id);
+  if (!profile) {
+    return NextResponse.json({ error: "Player not found" }, { status: 404 });
+  }
+  return NextResponse.json({ profile });
+}
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;

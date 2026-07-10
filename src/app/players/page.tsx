@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Card } from "@/components/ui/Card";
-import { buildPlayerProfile } from "@/lib/player-stats";
+import { buildPlayerRosterSummary } from "@/lib/player-stats";
 import type { PlayerProfile } from "@/lib/player-profile-types";
 import { mergeDuplicatePlayerRows } from "@/lib/player-dedupe";
 import { sortPlayersByRoster } from "@/lib/player-sort";
@@ -25,15 +25,19 @@ const PlayersRoster = nextDynamic(
   },
 );
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
+
+const rosterParticipationSelect = {
+  matchId: true,
+  champion: true,
+  side: true,
+  position: true,
+  match: { select: { playedAt: true, result: true, side: true } },
+} satisfies Prisma.MatchParticipantSelect;
 
 const playerInclude = {
   accounts: { orderBy: [{ region: "asc" }, { createdAt: "asc" }] },
-  participations: {
-    include: {
-      match: { select: { playedAt: true, result: true, side: true } },
-    },
-  },
+  participations: { select: rosterParticipationSelect },
 } satisfies Prisma.PlayerInclude;
 
 export default async function PlayersPage() {
@@ -52,10 +56,10 @@ export default async function PlayersPage() {
 
   const players: PlayerProfile[] = sortPlayersByRoster(
     mergeDuplicatePlayerRows(activeRows),
-  ).map((player) => buildPlayerProfile(player));
+  ).map((player) => buildPlayerRosterSummary(player));
 
   const formerPlayers: PlayerProfile[] = mergeDuplicatePlayerRows(formerRows).map(
-    (player) => buildPlayerProfile(player),
+    (player) => buildPlayerRosterSummary(player),
   );
 
   const tierlistsByPlayerId: Record<

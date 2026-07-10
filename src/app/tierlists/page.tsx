@@ -7,7 +7,7 @@ import {
   listAllTierlists,
 } from "@/lib/tierlist-db";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function TierlistsPage() {
   const [tierlists, players] = await Promise.all([

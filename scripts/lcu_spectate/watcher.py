@@ -17,6 +17,7 @@ from .config import CollectorConfig
 from .eog_fetch import poll_eog_block
 from .eog_validate import is_eog_complete, validate_extracted_match
 from .hub import push_to_hub, save_export, save_jsonl_backup
+from .hub_roster import apply_hub_roster
 from .lcu import LcuClient
 from .live_client import LiveClient
 from .mapper import build_from_eog, build_from_live_snapshot
@@ -50,6 +51,17 @@ class SpectateWatcher:
         self._draft_pick_bans: list[dict[str, Any]] = []
         self._draft_seen_action_ids: set[int] = set()
         self._draft_complete_logged = False
+        self._last_roster_sync = 0.0
+        if config.sync_roster_from_hub:
+            apply_hub_roster(config)
+            self._last_roster_sync = time.monotonic()
+
+    def _refresh_roster(self, *, force: bool = False) -> None:
+        now = time.monotonic()
+        if not force and now - self._last_roster_sync < 120:
+            return
+        if apply_hub_roster(self.config):
+            self._last_roster_sync = now
 
     def run_forever(self) -> None:
         print("Renim A. LCU spectate collector")
@@ -73,6 +85,7 @@ class SpectateWatcher:
 
         while True:
             try:
+                self._refresh_roster()
                 self._tick()
             except Exception as e:  # noqa: BLE001 — keep daemon alive
                 print(f"[error] {e}")
@@ -302,6 +315,7 @@ class SpectateWatcher:
         *,
         push: bool | None = None,
     ) -> None:
+        self._refresh_roster(force=True)
         game_id = eog.get("gameId") or self._last_game_id
         if game_id:
             self._last_game_id = game_id

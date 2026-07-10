@@ -38,6 +38,9 @@ export function PlayerDetailModal({
   onRosterChange?: () => void;
 }) {
   const close = useCallback(() => onClose(), [onClose]);
+  const [fullProfile, setFullProfile] = useState<PlayerProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
     if (!player) return;
@@ -58,17 +61,53 @@ export function PlayerDetailModal({
     if (player) setTab("champions");
   }, [player?.id]);
 
+  useEffect(() => {
+    if (!player) {
+      setFullProfile(null);
+      setProfileError("");
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingProfile(true);
+    setProfileError("");
+    setFullProfile(null);
+
+    fetch(`/api/players/${player.id}`)
+      .then(async (res) => {
+        const body = (await res.json()) as {
+          profile?: PlayerProfile;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(body.error ?? "Failed to load player");
+        if (!cancelled && body.profile) setFullProfile(body.profile);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setProfileError(e instanceof Error ? e.message : "Failed to load player");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingProfile(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [player?.id]);
+
   if (!player) return null;
 
-  const isSub = player.memberRole === "SUB";
-  const { overall } = player;
+  const display = fullProfile ?? player;
+  const isSub = display.memberRole === "SUB";
+  const { overall } = display;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label={`${player.displayName} stats`}
+      aria-label={`${display.displayName} stats`}
     >
       <button
         type="button"
@@ -80,21 +119,21 @@ export function PlayerDetailModal({
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-lg font-bold text-foreground">{player.displayName}</h2>
-              {!player.active && (
+              <h2 className="text-lg font-bold text-foreground">{display.displayName}</h2>
+              {!display.active && (
                 <Badge variant="default">Former</Badge>
               )}
               <Badge variant={isSub ? "default" : "blue"}>
-                {rosterLabel(player.memberRole)}
+                {rosterLabel(display.memberRole)}
               </Badge>
               <span className="text-sm font-medium text-muted">
-                {formatTeamRole(player.teamRole)}
+                {formatTeamRole(display.teamRole)}
               </span>
             </div>
-            {player.accounts.length > 0 ? (
+            {display.accounts.length > 0 ? (
               <div className="mt-1 space-y-1 text-sm">
                 {LOL_REGIONS_ORDER.map((region) => {
-                  const list = groupAccountsByRegion(player.accounts)[region];
+                  const list = groupAccountsByRegion(display.accounts)[region];
                   if (list.length === 0) return null;
                   return (
                     <div
@@ -119,16 +158,22 @@ export function PlayerDetailModal({
                   );
                 })}
               </div>
-            ) : player.summonerName ? (
-              <p className="mt-0.5 text-sm text-muted">{player.summonerName}</p>
+            ) : display.summonerName ? (
+              <p className="mt-0.5 text-sm text-muted">{display.summonerName}</p>
             ) : null}
             <p className="mt-1 text-xs text-faint">
-              {overall.games} game{overall.games === 1 ? "" : "s"} with result ·{" "}
-              <span className="text-emerald-400">{overall.wins}W</span>
-              <span className="text-muted">–</span>
-              <span className="text-rose-400">{overall.losses}L</span>
-              <span className="text-muted"> · </span>
-              {overall.winRate}% overall
+              {loadingProfile && !fullProfile ? (
+                "Loading stats…"
+              ) : (
+                <>
+                  {overall.games} game{overall.games === 1 ? "" : "s"} with result ·{" "}
+                  <span className="text-emerald-400">{overall.wins}W</span>
+                  <span className="text-muted">–</span>
+                  <span className="text-rose-400">{overall.losses}L</span>
+                  <span className="text-muted"> · </span>
+                  {overall.winRate}% overall
+                </>
+              )}
             </p>
           </div>
           <button
@@ -176,33 +221,37 @@ export function PlayerDetailModal({
           </div>
 
           {tab === "champions" ? (
-            player.champions.length === 0 ? (
+            loadingProfile && !fullProfile ? (
+              <p className="text-sm text-muted">Loading champion pool…</p>
+            ) : profileError ? (
+              <p className="text-sm text-rose-400">{profileError}</p>
+            ) : display.champions.length === 0 ? (
               <p className="text-sm text-muted">No games recorded yet.</p>
             ) : (
-              <ChampionPoolTable key={player.id} champions={player.champions} />
+              <ChampionPoolTable key={display.id} champions={display.champions} />
             )
           ) : (
             <PlayerAccountsTab
-              key={player.id}
-              playerId={player.id}
-              initialAccounts={player.accounts}
+              key={display.id}
+              playerId={display.id}
+              initialAccounts={display.accounts}
             />
           )}
         </div>
 
         <PlayerRosterStatus
-          playerId={player.id}
-          displayName={player.displayName}
-          active={player.active}
+          playerId={display.id}
+          displayName={display.displayName}
+          active={display.active}
           onChanged={() => {
             onRosterChange?.();
-            if (player.active) onClose();
+            if (display.active) onClose();
           }}
         />
         <PlayerDeleteButton
-          playerId={player.id}
-          displayName={player.displayName}
-          gameCount={player.totalGames}
+          playerId={display.id}
+          displayName={display.displayName}
+          gameCount={display.totalGames}
           onDeleted={onClose}
         />
       </div>

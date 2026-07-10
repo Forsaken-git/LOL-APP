@@ -33,6 +33,7 @@ class CollectorConfig:
     roster: dict[str, RosterEntry] = field(default_factory=dict)
     export_dir: str = "data/exports"
     push_on_complete: bool = True
+    sync_roster_from_hub: bool = True
     poll_interval_sec: float = 2.0
     eog_poll_interval_sec: float = 0.5
     post_game_timeout_sec: float = 120.0
@@ -88,6 +89,12 @@ class CollectorConfig:
             roster=roster,
             export_dir=str(raw.get("exportDir") or raw.get("export_dir") or "data/exports"),
             push_on_complete=bool(raw.get("pushOnComplete", raw.get("push_on_complete", True))),
+            sync_roster_from_hub=bool(
+                raw.get(
+                    "syncRosterFromHub",
+                    raw.get("sync_roster_from_hub", True),
+                )
+            ),
             poll_interval_sec=float(
                 raw.get("pollIntervalSec") or raw.get("poll_interval_sec") or 2.0
             ),

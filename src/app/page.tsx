@@ -1,6 +1,8 @@
 import { formatDateTime24Weekday } from "@/lib/datetime";
 import { prisma } from "@/lib/prisma";
-import { computeTeamStats } from "@/lib/stats";
+import {
+  computeTeamStatsFromGroupBy,
+} from "@/lib/stats";
 import { buildEncounterSummaries } from "@/lib/match-encounters";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -10,14 +12,22 @@ import { OverviewCalendar } from "@/components/dashboard/OverviewCalendar";
 import { RecentMatches } from "@/components/dashboard/RecentMatches";
 import { SyncStatus } from "@/components/dashboard/SyncStatus";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function DashboardPage() {
   const now = new Date();
-  const [playedMatches, recentMatchRows, upcomingEvents] = await Promise.all([
-    prisma.match.findMany({
-      where: { status: "PLAYED" },
-      select: { result: true, side: true },
+  const playedWhere = { status: "PLAYED" as const, result: { not: null } };
+  const [resultCounts, sideResultCounts, recentMatchRows, upcomingEvents] =
+    await Promise.all([
+    prisma.match.groupBy({
+      by: ["result"],
+      where: playedWhere,
+      _count: true,
+    }),
+    prisma.match.groupBy({
+      by: ["side", "result"],
+      where: playedWhere,
+      _count: true,
     }),
     prisma.match.findMany({
       orderBy: { playedAt: "desc" },
@@ -40,7 +50,7 @@ export default async function DashboardPage() {
 
   const nextEvent = upcomingEvents[0] ?? null;
 
-  const stats = computeTeamStats(playedMatches);
+  const stats = computeTeamStatsFromGroupBy(resultCounts, sideResultCounts);
   const recentEncounters = buildEncounterSummaries(
     recentMatchRows.filter(
       (m): m is typeof m & { result: NonNullable<typeof m.result> } =>

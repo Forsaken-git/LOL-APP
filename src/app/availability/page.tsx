@@ -5,7 +5,7 @@ import { formatWeekRange, getWeekStart, parseAvailability } from "@/lib/week";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import type { AvailabilityData } from "@/lib/week";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function AvailabilityPage() {
   const weekStart = getWeekStart();
