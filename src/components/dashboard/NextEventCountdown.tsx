@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDateTime24Weekday } from "@/lib/datetime";
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "Starting now";
@@ -20,11 +21,11 @@ function formatCountdown(ms: number): string {
 type Props = {
   title: string;
   startAt: string;
-  dateLabel: string;
 };
 
-export function NextEventCountdown({ title, startAt, dateLabel }: Props) {
-  const target = new Date(startAt).getTime();
+export function NextEventCountdown({ title, startAt }: Props) {
+  const start = new Date(startAt);
+  const target = start.getTime();
   const [remaining, setRemaining] = useState(() => target - Date.now());
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function NextEventCountdown({ title, startAt, dateLabel }: Props) {
       <p className="mt-2 font-serif text-2xl font-semibold tabular-nums tracking-wide text-accent-bright">
         {formatCountdown(remaining)}
       </p>
-      <p className="mt-1 text-sm text-muted">{dateLabel}</p>
+      <p className="mt-1 text-sm text-muted">{formatDateTime24Weekday(start)}</p>
     </div>
   );
 }

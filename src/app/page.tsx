@@ -1,4 +1,3 @@
-import { formatDateTime24Weekday } from "@/lib/datetime";
 import { prisma } from "@/lib/prisma";
 import {
   computeTeamStatsFromGroupBy,
@@ -7,6 +6,7 @@ import { buildEncounterSummaries } from "@/lib/match-encounters";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
+import { LocalDateTime } from "@/components/dashboard/LocalDateTime";
 import { NextEventCountdown } from "@/components/dashboard/NextEventCountdown";
 import { OverviewCalendar } from "@/components/dashboard/OverviewCalendar";
 import { RecentMatches } from "@/components/dashboard/RecentMatches";
@@ -124,7 +124,6 @@ export default async function DashboardPage() {
             <NextEventCountdown
               title={nextEvent.title}
               startAt={nextEvent.startAt.toISOString()}
-              dateLabel={formatDateTime24Weekday(nextEvent.startAt)}
             />
           ) : null}
           {upcomingEvents.length === 0 ? (
@@ -135,7 +134,7 @@ export default async function DashboardPage() {
                 <li key={e.id} className="text-sm">
                   <p className="font-medium text-foreground">{e.title}</p>
                   <p className="text-muted">
-                    {formatDateTime24Weekday(e.startAt)}
+                    <LocalDateTime iso={e.startAt.toISOString()} />
                   </p>
                 </li>
               ))}
