@@ -6,11 +6,10 @@ import { buildEncounterSummaries } from "@/lib/match-encounters";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatTile } from "@/components/ui/StatTile";
-import { LocalDateTime } from "@/components/dashboard/LocalDateTime";
-import { NextEventCountdown } from "@/components/dashboard/NextEventCountdown";
 import { OverviewCalendar } from "@/components/dashboard/OverviewCalendar";
 import { RecentMatches } from "@/components/dashboard/RecentMatches";
 import { SyncStatus } from "@/components/dashboard/SyncStatus";
+import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 
 export const revalidate = 30;
 
@@ -44,11 +43,15 @@ export default async function DashboardPage() {
     prisma.event.findMany({
       where: { startAt: { gte: now } },
       orderBy: { startAt: "asc" },
-      take: 4,
+      take: 8,
     }),
   ]);
 
-  const nextEvent = upcomingEvents[0] ?? null;
+  const upcomingEventItems = upcomingEvents.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startAt: e.startAt.toISOString(),
+  }));
 
   const stats = computeTeamStatsFromGroupBy(resultCounts, sideResultCounts);
   const recentEncounters = buildEncounterSummaries(
@@ -120,26 +123,7 @@ export default async function DashboardPage() {
         </Card>
 
         <Card title="Upcoming" className="lg:col-span-1">
-          {nextEvent ? (
-            <NextEventCountdown
-              title={nextEvent.title}
-              startAt={nextEvent.startAt.toISOString()}
-            />
-          ) : null}
-          {upcomingEvents.length === 0 ? (
-            <p className="text-sm text-muted">Nothing scheduled.</p>
-          ) : (
-            <ul className="space-y-3">
-              {(nextEvent ? upcomingEvents.slice(1) : upcomingEvents).map((e) => (
-                <li key={e.id} className="text-sm">
-                  <p className="font-medium text-foreground">{e.title}</p>
-                  <p className="text-muted">
-                    <LocalDateTime iso={e.startAt.toISOString()} />
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
+          <UpcomingEvents events={upcomingEventItems} />
         </Card>
       </div>
 
