@@ -23,9 +23,6 @@ export const SCENARIO_ROWS: ScenarioRow[] = [
   { kind: "pick", blue: { label: "B5", turnIndex: 18 }, red: { label: "R5", turnIndex: 19 } },
 ];
 
-export const PREP_CELL_WIDTH = 440;
-export const PREP_CELL_HEIGHT = 500;
-
 /** Max champion squares per side on a draft row (primary + extras). */
 export const PREP_SLOTS_PER_SIDE = 5;
 
@@ -43,6 +40,45 @@ export const PREP_SLOT_GAP_PX = 4;
 
 /** @deprecated Use {@link PREP_SLOT_GAP_PX}. */
 export const PREP_BAN_SLOT_GAP_PX = PREP_SLOT_GAP_PX;
+
+/** Width needed for a full side of champion slots. */
+export const PREP_SIDE_WIDTH_PX =
+  PREP_SLOTS_PER_SIDE * PREP_SLOT_PX +
+  (PREP_SLOTS_PER_SIDE - 1) * PREP_SLOT_GAP_PX;
+
+/** Vertical padding inside each draft row (matches Tailwind `py-1`). */
+export const PREP_ROW_PAD_Y_PX = 8;
+
+/** Gap between draft rows (matches Tailwind `gap-[2px]`). */
+export const PREP_ROW_GAP_PX = 2;
+
+/** Minimum row height so champion slots are never vertically clipped. */
+export const PREP_ROW_MIN_HEIGHT_PX = PREP_SLOT_PX + PREP_ROW_PAD_Y_PX;
+
+/**
+ * Cell size must fit: CellZoomLayer padding + card padding + row padding +
+ * divider + column gap + both sides at full slot capacity.
+ */
+export const PREP_CELL_WIDTH =
+  16 + // CellZoomLayer p-2
+  16 + // ScenarioCard p-2
+  16 + // row px-2
+  4 + // divider w-1
+  8 + // grid gap-2
+  PREP_SIDE_WIDTH_PX * 2 +
+  8; // breathing room
+
+/**
+ * Cell height must fit header, notes footer, and every draft row at slot height.
+ */
+export const PREP_CELL_HEIGHT =
+  16 + // CellZoomLayer p-2
+  16 + // ScenarioCard p-2
+  40 + // header
+  SCENARIO_ROWS.length * PREP_ROW_MIN_HEIGHT_PX +
+  (SCENARIO_ROWS.length - 1) * PREP_ROW_GAP_PX +
+  48 + // notes footer
+  16; // breathing room
 
 export const PREP_GRID_COLS = 12;
 export const PREP_GRID_ROWS = 8;

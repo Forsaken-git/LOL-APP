@@ -5,6 +5,8 @@ import { GripVertical, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { championImageUrl } from "@/lib/champions";
 import type { DraftEntry } from "@/lib/draft";
 import {
+  PREP_ROW_MIN_HEIGHT_PX,
+  PREP_SIDE_WIDTH_PX,
   PREP_SLOTS_PER_SIDE,
   SCENARIO_ROWS,
 } from "@/lib/draft-prep/scenario-layout";
@@ -190,8 +192,8 @@ function BlueSide({
   const hasOtherSlots = extras.length > 0;
 
   return (
-    <div className="flex min-w-0 items-center justify-end overflow-hidden">
-      <div className="flex max-w-full shrink items-center justify-end gap-1">
+    <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-1">
         {showPlus && <PlusSlot label={label} onClick={onPlusClick} />}
         {extras.map((extra) => (
           <DraftSlot
@@ -240,8 +242,8 @@ function RedSide({
   const hasOtherSlots = extras.length > 0;
 
   return (
-    <div className="flex min-w-0 items-center justify-start overflow-hidden">
-      <div className="flex max-w-full shrink items-center justify-start gap-1">
+    <div className="flex items-center justify-start">
+      <div className="flex items-center justify-start gap-1">
         <DraftSlot
           label={label}
           champion={champion}
@@ -428,8 +430,12 @@ export function ScenarioCard({
           return (
             <div
               key={`${row.blue.turnIndex}-${row.red.turnIndex}`}
-              className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2 py-1"
-              style={{ backgroundColor: rowBg }}
+              className="grid flex-1 items-center gap-2 overflow-hidden px-2 py-1"
+              style={{
+                backgroundColor: rowBg,
+                minHeight: PREP_ROW_MIN_HEIGHT_PX,
+                gridTemplateColumns: `minmax(${PREP_SIDE_WIDTH_PX}px, 1fr) auto minmax(${PREP_SIDE_WIDTH_PX}px, 1fr)`,
+              }}
             >
               <BlueSide
                 label={row.blue.label}

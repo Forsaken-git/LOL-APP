@@ -67,8 +67,11 @@ function CellZoomLayer({ children }: { children: ReactNode }) {
   );
 }
 
+const PAN_THRESHOLD_PX = 3;
+
 export function DraftPrepCanvas() {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const [scenarios, setScenarios] = useState<DraftPrepScenario[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [zoom, setZoom] = useState(0.85);
@@ -96,32 +99,52 @@ export function DraftPrepCanvas() {
     scenarioId: string;
   } | null>(null);
   const zoomPanRef = useRef({ zoom: 0.85, pan: { x: 48, y: 48 } });
+  const isPanningRef = useRef(false);
+
+  const paintBoard = useCallback(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    const { zoom: z, pan: p } = zoomPanRef.current;
+    el.style.transform = `translate(${p.x}px, ${p.y}px) scale(${z})`;
+  }, []);
+
+  const commitView = useCallback(
+    (nextZoom: number, nextPan: { x: number; y: number }) => {
+      zoomPanRef.current = { zoom: nextZoom, pan: nextPan };
+      paintBoard();
+      setZoom(nextZoom);
+      setPan(nextPan);
+    },
+    [paintBoard],
+  );
 
   useEffect(() => {
+    // Keep DOM transform in sync when React state is the source of truth
+    // (not while a live pan is driving the board directly).
+    if (isPanningRef.current) return;
     zoomPanRef.current = { zoom, pan };
-  }, [zoom, pan]);
+    paintBoard();
+  }, [zoom, pan, paintBoard]);
 
-  const clientToCell = useCallback(
-    (clientX: number, clientY: number) => {
-      const vp = viewportRef.current;
-      if (!vp) return null;
-      const rect = vp.getBoundingClientRect();
-      const gridX = (clientX - rect.left - pan.x) / zoom;
-      const gridY = (clientY - rect.top - pan.y) / zoom;
-      const col = Math.floor(gridX / PREP_CELL_WIDTH);
-      const row = Math.floor(gridY / PREP_CELL_HEIGHT);
-      if (
-        col < 0 ||
-        col >= PREP_GRID_COLS ||
-        row < 0 ||
-        row >= PREP_GRID_ROWS
-      ) {
-        return null;
-      }
-      return { col, row };
-    },
-    [pan.x, pan.y, zoom],
-  );
+  const clientToCell = useCallback((clientX: number, clientY: number) => {
+    const vp = viewportRef.current;
+    if (!vp) return null;
+    const rect = vp.getBoundingClientRect();
+    const { zoom: z, pan: p } = zoomPanRef.current;
+    const gridX = (clientX - rect.left - p.x) / z;
+    const gridY = (clientY - rect.top - p.y) / z;
+    const col = Math.floor(gridX / PREP_CELL_WIDTH);
+    const row = Math.floor(gridY / PREP_CELL_HEIGHT);
+    if (
+      col < 0 ||
+      col >= PREP_GRID_COLS ||
+      row < 0 ||
+      row >= PREP_GRID_ROWS
+    ) {
+      return null;
+    }
+    return { col, row };
+  }, []);
 
   const moveScenario = useCallback(
     (scenarioId: string, col: number, row: number) => {
@@ -230,16 +253,12 @@ export function DraftPrepCanvas() {
       const newZoom = clampZoom(targetZoom);
       if (newZoom === oldZoom) return;
 
-      const newPan = {
+      commitView(newZoom, {
         x: mx - ((mx - oldPan.x) * newZoom) / oldZoom,
         y: my - ((my - oldPan.y) * newZoom) / oldZoom,
-      };
-
-      zoomPanRef.current = { zoom: newZoom, pan: newPan };
-      setZoom(newZoom);
-      setPan(newPan);
+      });
     },
-    [clampZoom],
+    [clampZoom, commitView],
   );
 
   const handleWheel = useCallback(
@@ -262,10 +281,11 @@ export function DraftPrepCanvas() {
     const viewport = viewportRef.current;
     if (!viewport) return;
 
+    const { zoom: z, pan: p } = zoomPanRef.current;
     const cellLeft =
-      pan.x + (col * PREP_CELL_WIDTH + PREP_CELL_WIDTH / 2) * zoom;
+      p.x + (col * PREP_CELL_WIDTH + PREP_CELL_WIDTH / 2) * z;
     const cellTop =
-      pan.y + (row * PREP_CELL_HEIGHT + PREP_CELL_HEIGHT / 2) * zoom;
+      p.y + (row * PREP_CELL_HEIGHT + PREP_CELL_HEIGHT / 2) * z;
 
     const maxX = viewport.clientWidth - 16;
     const maxY = viewport.clientHeight - 16;
@@ -276,7 +296,7 @@ export function DraftPrepCanvas() {
       x: Math.min(Math.max(cellLeft, 96), maxX),
       y: Math.min(Math.max(cellTop, 48), maxY),
     });
-  }, [pan.x, pan.y, zoom]);
+  }, []);
 
   const onViewportPointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -289,19 +309,26 @@ export function DraftPrepCanvas() {
       ) {
         return;
       }
+
+      // Left/middle drag pans the board; ignore multi-touch gestures.
+      if (e.pointerType === "touch" && !e.isPrimary) return;
+
+      e.preventDefault();
       setMenu(null);
       panMovedRef.current = false;
+      const { pan: currentPan } = zoomPanRef.current;
       panDrag.current = {
         pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
-        panX: pan.x,
-        panY: pan.y,
+        panX: currentPan.x,
+        panY: currentPan.y,
       };
+      isPanningRef.current = true;
       setIsPanning(true);
       e.currentTarget.setPointerCapture(e.pointerId);
     },
-    [pan.x, pan.y],
+    [],
   );
 
   const onViewportPointerMove = useCallback(
@@ -314,15 +341,19 @@ export function DraftPrepCanvas() {
 
       const drag = panDrag.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
+
       const dx = e.clientX - drag.startX;
       const dy = e.clientY - drag.startY;
-      if (Math.hypot(dx, dy) > 4) panMovedRef.current = true;
-      setPan({
-        x: drag.panX + dx,
-        y: drag.panY + dy,
-      });
+      if (Math.hypot(dx, dy) > PAN_THRESHOLD_PX) panMovedRef.current = true;
+
+      // Update the board transform directly — avoid React re-renders per move.
+      zoomPanRef.current = {
+        zoom: zoomPanRef.current.zoom,
+        pan: { x: drag.panX + dx, y: drag.panY + dy },
+      };
+      paintBoard();
     },
-    [clientToCell],
+    [clientToCell, paintBoard],
   );
 
   const onViewportPointerUp = useCallback(
@@ -336,17 +367,28 @@ export function DraftPrepCanvas() {
         scenarioDrag.current = null;
         setDraggingScenarioId(null);
         setDropTarget(null);
-        e.currentTarget.releasePointerCapture(e.pointerId);
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
         return;
       }
 
       if (panDrag.current?.pointerId === e.pointerId) {
         const didPan = panMovedRef.current;
         panDrag.current = null;
+        isPanningRef.current = false;
+        // Commit the live pan into React state once at the end.
+        setPan(zoomPanRef.current.pan);
         setIsPanning(false);
-        e.currentTarget.releasePointerCapture(e.pointerId);
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {
+          /* already released */
+        }
 
-        if (!didPan) {
+        if (!didPan && e.button === 0) {
           const cell = clientToCell(e.clientX, e.clientY);
           if (cell && !scenarioByCell.has(cellKey(cell.col, cell.row))) {
             openCellMenu(cell.col, cell.row);
@@ -364,14 +406,11 @@ export function DraftPrepCanvas() {
     const scaleX = (vp.clientWidth - padding * 2) / baseGridWidth;
     const scaleY = (vp.clientHeight - padding * 2) / baseGridHeight;
     const nextZoom = clampZoom(Math.min(scaleX, scaleY, 1));
-    const nextPan = {
+    commitView(nextZoom, {
       x: Math.max(padding, (vp.clientWidth - baseGridWidth * nextZoom) / 2),
       y: Math.max(padding, (vp.clientHeight - baseGridHeight * nextZoom) / 2),
-    };
-    zoomPanRef.current = { zoom: nextZoom, pan: nextPan };
-    setZoom(nextZoom);
-    setPan(nextPan);
-  }, [clampZoom, baseGridWidth, baseGridHeight]);
+    });
+  }, [clampZoom, commitView, baseGridWidth, baseGridHeight]);
 
   const createScenario = useCallback((col: number, row: number) => {
     setScenarios((prev) => [
@@ -548,11 +587,15 @@ export function DraftPrepCanvas() {
     );
   }
 
+  // While panning, React state lags behind the live ref — prefer the ref so
+  // unrelated re-renders (e.g. sync status) don't snap the board back.
+  const view = isPanning ? zoomPanRef.current : { zoom, pan };
+
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col">
       <div
         ref={viewportRef}
-        className={`relative min-h-0 flex-1 touch-none overflow-hidden bg-[#0a0a0a] ${
+        className={`relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-[#0a0a0a] ${
           draggingScenarioId || isPanning ? "cursor-grabbing" : "cursor-grab"
         }`}
         onWheel={handleWheel}
@@ -562,13 +605,14 @@ export function DraftPrepCanvas() {
         onPointerCancel={onViewportPointerUp}
       >
         <div
-          className="absolute left-0 top-0 origin-top-left"
+          ref={boardRef}
+          className="absolute left-0 top-0 origin-top-left will-change-transform"
           style={{
             width: baseGridWidth,
             height: baseGridHeight,
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transform: `translate(${view.pan.x}px, ${view.pan.y}px) scale(${view.zoom})`,
             transformOrigin: "0 0",
-            ["--prep-zoom" as string]: zoom,
+            ["--prep-zoom" as string]: view.zoom,
           }}
         >
           <div
