@@ -85,8 +85,8 @@ export type ChampionImageVariant = "square" | "tile";
 
 /**
  * Champion portrait URL.
- * - `square`: compact 120×120 icon (lists, dense UI)
- * - `tile`: larger loading-tile crop (~308×560) — stays sharp when zoomed
+ * - `square`: classic framed client icon (~120px)
+ * - `tile`: centered splash (~1280×720), for larger crops
  */
 export function championImageUrl(
   name: string,
@@ -94,7 +94,7 @@ export function championImageUrl(
 ): string {
   const key = championImageKey(name);
   if (variant === "tile") {
-    return `https://ddragon.leagueoflegends.com/cdn/img/champion/tiles/${encodeURIComponent(key)}_0.jpg`;
+    return `https://ddragon.leagueoflegends.com/cdn/img/champion/centered/${encodeURIComponent(key)}_0.jpg`;
   }
   return `https://ddragon.leagueoflegends.com/cdn/${DDRAGON_VERSION}/img/champion/${encodeURIComponent(key)}.png`;
 }

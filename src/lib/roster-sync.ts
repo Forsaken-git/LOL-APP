@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { dirname, resolve } from "path";
 import {
   clearTeamRosterCache,
   rosterExternalId,
@@ -8,6 +8,7 @@ import {
 
 const TEAM_ROSTER_PATH = resolve("data/team-roster.json");
 const LCU_CONFIG_PATH = resolve("data/lcu-spectate.config.json");
+const LCU_CONFIG_EXAMPLE_PATH = resolve("data/lcu-spectate.config.example.json");
 
 export type TrackingFileStatus = "updated" | "skipped" | "missing";
 
@@ -20,6 +21,66 @@ function summonerKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
+function ensureDataDir(filePath: string) {
+  mkdirSync(dirname(filePath), { recursive: true });
+}
+
+/** Create empty roster file so local LCU/hub tracking can start. */
+function ensureTeamRosterFile(): boolean {
+  if (existsSync(TEAM_ROSTER_PATH)) return true;
+  try {
+    ensureDataDir(TEAM_ROSTER_PATH);
+    writeFileSync(
+      TEAM_ROSTER_PATH,
+      `${JSON.stringify({ players: [] }, null, 2)}\n`,
+      "utf-8",
+    );
+    return true;
+  } catch (error) {
+    console.warn("[roster-sync] could not create team-roster.json", error);
+    return false;
+  }
+}
+
+/** Create LCU config from the example template (or a minimal stub). */
+function ensureLcuConfigFile(): boolean {
+  if (existsSync(LCU_CONFIG_PATH)) return true;
+  try {
+    ensureDataDir(LCU_CONFIG_PATH);
+    let base: Record<string, unknown> = {
+      hubUrl: "",
+      syncRosterFromHub: true,
+      league: "Scrim",
+      gameType: "SCRIM",
+      platformId: "EUW1",
+      pushOnComplete: true,
+      captureChampSelectDraft: true,
+      teamSummoners: [],
+      roster: {},
+    };
+    if (existsSync(LCU_CONFIG_EXAMPLE_PATH)) {
+      base = {
+        ...base,
+        ...(JSON.parse(readFileSync(LCU_CONFIG_EXAMPLE_PATH, "utf-8")) as Record<
+          string,
+          unknown
+        >),
+        teamSummoners: [],
+        roster: {},
+      };
+    }
+    writeFileSync(
+      LCU_CONFIG_PATH,
+      `${JSON.stringify(base, null, 2)}\n`,
+      "utf-8",
+    );
+    return true;
+  } catch (error) {
+    console.warn("[roster-sync] could not create lcu-spectate.config.json", error);
+    return false;
+  }
+}
+
 function rosterEntryMatches(a: TeamRosterEntry, b: TeamRosterEntry): boolean {
   if (a.externalId && b.externalId) {
     return summonerKey(a.externalId) === summonerKey(b.externalId);
@@ -30,7 +91,7 @@ function rosterEntryMatches(a: TeamRosterEntry, b: TeamRosterEntry): boolean {
   return summonerKey(a.displayName) === summonerKey(b.displayName);
 }
 
-/** Append player to local team-roster.json and lcu-spectate.config.json when those files exist. */
+/** Append player to local team-roster.json and lcu-spectate.config.json (creates them if needed). */
 export function syncPlayerToTrackingFiles(
   entry: TeamRosterEntry,
 ): TrackingSyncResult {
@@ -44,7 +105,9 @@ export function syncPlayerToTrackingFiles(
     externalId: entry.externalId ?? rosterExternalId(entry),
   };
 
-  if (existsSync(TEAM_ROSTER_PATH)) {
+  if (!ensureTeamRosterFile()) {
+    result.teamRoster = "missing";
+  } else {
     const raw = JSON.parse(readFileSync(TEAM_ROSTER_PATH, "utf-8")) as {
       players?: TeamRosterEntry[];
     };
@@ -63,47 +126,54 @@ export function syncPlayerToTrackingFiles(
     clearTeamRosterCache();
   }
 
-  if (existsSync(LCU_CONFIG_PATH) && normalized.summonerName) {
-    const raw = JSON.parse(readFileSync(LCU_CONFIG_PATH, "utf-8")) as {
-      teamSummoners?: string[];
-      roster?: Record<string, Record<string, unknown>>;
+  if (!normalized.summonerName) {
+    return result;
+  }
+
+  if (!ensureLcuConfigFile()) {
+    result.lcuConfig = "missing";
+    return result;
+  }
+
+  const raw = JSON.parse(readFileSync(LCU_CONFIG_PATH, "utf-8")) as {
+    teamSummoners?: string[];
+    roster?: Record<string, Record<string, unknown>>;
+  };
+  const summoners = [...(raw.teamSummoners ?? [])];
+  const roster = { ...(raw.roster ?? {}) };
+  const key = summonerKey(normalized.summonerName);
+  const sumKey = (s: string) => summonerKey(s);
+
+  let changed = false;
+
+  if (!summoners.some((s) => sumKey(s) === key)) {
+    summoners.push(normalized.summonerName);
+    changed = true;
+  }
+
+  const existing = roster[key];
+  if (!existing) {
+    roster[key] = {
+      externalId: normalized.externalId,
+      displayName: normalized.displayName,
+      summonerName: normalized.summonerName,
+      teamRole: normalized.teamRole ?? "FILL",
+      memberRole: normalized.memberRole ?? "PLAYER",
     };
-    const summoners = [...(raw.teamSummoners ?? [])];
-    const roster = { ...(raw.roster ?? {}) };
-    const key = summonerKey(normalized.summonerName);
-    const sumKey = (s: string) => summonerKey(s);
+    changed = true;
+  }
 
-    let changed = false;
-
-    if (!summoners.some((s) => sumKey(s) === key)) {
-      summoners.push(normalized.summonerName);
-      changed = true;
-    }
-
-    const existing = roster[key];
-    if (!existing) {
-      roster[key] = {
-        externalId: normalized.externalId,
-        displayName: normalized.displayName,
-        summonerName: normalized.summonerName,
-        teamRole: normalized.teamRole ?? "FILL",
-        memberRole: normalized.memberRole ?? "PLAYER",
-      };
-      changed = true;
-    }
-
-    if (changed) {
-      raw.teamSummoners = summoners;
-      raw.roster = roster;
-      writeFileSync(
-        LCU_CONFIG_PATH,
-        `${JSON.stringify(raw, null, 2)}\n`,
-        "utf-8",
-      );
-      result.lcuConfig = "updated";
-    } else {
-      result.lcuConfig = "skipped";
-    }
+  if (changed) {
+    raw.teamSummoners = summoners;
+    raw.roster = roster;
+    writeFileSync(
+      LCU_CONFIG_PATH,
+      `${JSON.stringify(raw, null, 2)}\n`,
+      "utf-8",
+    );
+    result.lcuConfig = "updated";
+  } else {
+    result.lcuConfig = "skipped";
   }
 
   return result;

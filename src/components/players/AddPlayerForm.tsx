@@ -28,8 +28,16 @@ function trackingMessage(tracking: TrackingSync): string | null {
   if (tracking.lcuConfig === "updated") {
     parts.push("lcu-spectate.config.json");
   }
-  if (parts.length === 0) return null;
-  return `Also added to ${parts.join(" and ")} for LCU tracking.`;
+  if (parts.length > 0) {
+    return `Also added to ${parts.join(" and ")} for LCU tracking.`;
+  }
+  if (
+    tracking.teamRoster === "missing" &&
+    tracking.lcuConfig === "missing"
+  ) {
+    return "Player saved to the hub. Local LCU tracking files update only when the app runs on your PC.";
+  }
+  return null;
 }
 
 export function AddPlayerForm() {
@@ -126,10 +134,10 @@ export function AddPlayerForm() {
       </div>
 
       <p className="mb-4 text-xs text-muted">
-        Adds to the hub roster and, when running locally, updates{" "}
-        <code className="text-faint">team-roster.json</code> and{" "}
-        <code className="text-faint">lcu-spectate.config.json</code> for match
-        tracking.
+        Adds to the hub roster and updates local{" "}
+        <code className="text-faint">data/team-roster.json</code> and{" "}
+        <code className="text-faint">data/lcu-spectate.config.json</code> for match
+        tracking (creates them on first add when running locally).
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2">

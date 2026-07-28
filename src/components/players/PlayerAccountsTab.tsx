@@ -32,9 +32,11 @@ function toDraft(accounts: PlayerAccountEntry[]): DraftAccount[] {
 export function PlayerAccountsTab({
   playerId,
   initialAccounts,
+  onSaved,
 }: {
   playerId: string;
   initialAccounts: PlayerAccountEntry[];
+  onSaved?: (accounts: PlayerAccountEntry[]) => void;
 }) {
   const router = useRouter();
   const [accounts, setAccounts] = useState<DraftAccount[]>(() =>
@@ -53,7 +55,9 @@ export function PlayerAccountsTab({
     setDraftInputs({ WEST: "", EAST: "" });
     setError(null);
     setSuccess(null);
-  }, [playerId, initialAccounts]);
+    // Only reset when switching players — not when parent re-renders with a
+    // stale account list after save (that was wiping newly added IDs).
+  }, [playerId]);
 
   function addAccount(region: PlayerAccountEntry["region"]) {
     const summonerName = draftInputs[region]?.trim() ?? "";
@@ -88,33 +92,87 @@ export function PlayerAccountsTab({
     setSuccess(null);
   }
 
+  /** Merge typed-but-not-added inputs into the list (so Save doesn't drop them). */
+  function accountsWithDrafts():
+    | { ok: true; next: DraftAccount[] }
+    | { ok: false; error: string } {
+    let next = [...accounts];
+    const seen = new Set(
+      next.map((a) => normalizeSummonerKey(a.summonerName)),
+    );
+
+    for (const { region } of REGIONS) {
+      const summonerName = draftInputs[region]?.trim() ?? "";
+      if (!summonerName) continue;
+
+      const validation = validateSummonerName(summonerName);
+      if (validation) {
+        return {
+          ok: false,
+          error: `${formatRegionLabel(region)}: ${validation}`,
+        };
+      }
+
+      const key = normalizeSummonerKey(summonerName);
+      if (seen.has(key)) {
+        return { ok: false, error: `${summonerName} is already on this player` };
+      }
+      seen.add(key);
+      next.push({
+        region,
+        summonerName,
+        clientKey: `${region}-${key}-${Date.now()}`,
+      });
+    }
+
+    return { ok: true, next };
+  }
+
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
 
-    if (accounts.length === 0) {
+    const merged = accountsWithDrafts();
+    if (!merged.ok) {
+      setError(merged.error);
+      setLoading(false);
+      return;
+    }
+
+    if (merged.next.length === 0) {
       setError("Add at least one account.");
       setLoading(false);
       return;
     }
+
+    // Keep UI in sync if drafts were flushed into the payload.
+    setAccounts(merged.next);
+    setDraftInputs({ WEST: "", EAST: "" });
 
     try {
       const res = await fetch(`/api/players/${playerId}/accounts`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          accounts: accounts.map(({ region, summonerName }) => ({
+          accounts: merged.next.map(({ region, summonerName }) => ({
             region,
             summonerName,
           })),
         }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        accounts?: PlayerAccountEntry[];
+      };
       if (!res.ok) {
         setError(data.error ?? "Could not save accounts");
         return;
+      }
+      if (data.accounts) {
+        setAccounts(toDraft(data.accounts));
+        onSaved?.(data.accounts);
       }
       setSuccess("Accounts saved.");
       router.refresh();
@@ -128,8 +186,9 @@ export function PlayerAccountsTab({
   return (
     <form onSubmit={onSave} className="space-y-4">
       <p className="text-xs text-muted">
-        Add multiple Riot IDs per server. Each account links to op.gg. The first
-        EU West account is used for LCU match tracking.
+        Add multiple Riot IDs per server (type an ID and press Add, or Save to
+        include the field). Each account links to op.gg. The first EU West
+        account is used for LCU match tracking.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">

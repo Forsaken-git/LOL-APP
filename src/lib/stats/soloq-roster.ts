@@ -45,6 +45,61 @@ export function formatSoloQRank(soloq: {
   return `${tier} ${soloq.rank} · ${soloq.leaguePoints} LP`;
 }
 
+export type SoloQPlayerSummary = {
+  playerId: string;
+  displayName: string;
+  teamRole: string;
+  memberRole: string;
+  accounts: SoloQAccountResult[];
+  /** Highest-ranked account (or first if none ranked). */
+  best: SoloQAccountResult;
+  combinedWins: number;
+  combinedLosses: number;
+};
+
+/** One summary row per player, ranked by their best SoloQ account. */
+export function groupSoloQByPlayer(
+  results: SoloQAccountResult[],
+): SoloQPlayerSummary[] {
+  const byPlayer = new Map<string, SoloQAccountResult[]>();
+  for (const row of results) {
+    const list = byPlayer.get(row.playerId);
+    if (list) list.push(row);
+    else byPlayer.set(row.playerId, [row]);
+  }
+
+  const summaries: SoloQPlayerSummary[] = [];
+  for (const accounts of byPlayer.values()) {
+    const sorted = [...accounts].sort(
+      (a, b) => soloqSortScore(b) - soloqSortScore(a),
+    );
+    const best = sorted[0]!;
+    let combinedWins = 0;
+    let combinedLosses = 0;
+    for (const account of accounts) {
+      if (account.soloq) {
+        combinedWins += account.soloq.wins;
+        combinedLosses += account.soloq.losses;
+      }
+    }
+    summaries.push({
+      playerId: best.playerId,
+      displayName: best.displayName,
+      teamRole: best.teamRole,
+      memberRole: best.memberRole,
+      accounts: sorted,
+      best,
+      combinedWins,
+      combinedLosses,
+    });
+  }
+
+  summaries.sort(
+    (a, b) => soloqSortScore(b.best) - soloqSortScore(a.best),
+  );
+  return summaries;
+}
+
 export async function loadSoloQRosterStats(opts?: {
   bypassCache?: boolean;
 }): Promise<SoloQStatsPayload> {
@@ -102,6 +157,7 @@ export async function loadSoloQRosterStats(opts?: {
                 id: `legacy-${player.id}`,
                 region: "WEST" as const,
                 summonerName: player.summonerName,
+                puuid: null as string | null,
               },
             ]
           : [];
@@ -124,6 +180,24 @@ export async function loadSoloQRosterStats(opts?: {
         region,
         summonerName: account.summonerName,
       };
+
+      if (fetched.status === "ok" || fetched.status === "unranked") {
+        if (!account.id.startsWith("legacy-")) {
+          const { syncAccountRankSnapshot } = await import(
+            "@/lib/stats/soloq-advanced-sync"
+          );
+          await syncAccountRankSnapshot({
+            accountId: account.id,
+            summonerName: account.summonerName,
+            region,
+            puuid: account.puuid ?? null,
+            soloq: fetched.status === "ok" ? fetched.soloq : null,
+            resolvedPuuid: fetched.puuid,
+          }).catch(() => {
+            /* rank snapshot is best-effort on roster refresh */
+          });
+        }
+      }
 
       if (fetched.status === "ok") {
         return { ...base, status: "ok" as const, soloq: fetched.soloq };

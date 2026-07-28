@@ -235,6 +235,21 @@ export function PlayerDetailModal({
               key={display.id}
               playerId={display.id}
               initialAccounts={display.accounts}
+              onSaved={(accounts) => {
+                setFullProfile((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        accounts,
+                        summonerName:
+                          accounts.find((a) => a.region === "WEST")
+                            ?.summonerName ??
+                          accounts[0]?.summonerName ??
+                          prev.summonerName,
+                      }
+                    : prev,
+                );
+              }}
             />
           )}
         </div>

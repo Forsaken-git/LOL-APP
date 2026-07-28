@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { GripVertical, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { GripVertical, RotateCcw, Trash2, X } from "lucide-react";
 import { championImageUrl } from "@/lib/champions";
 import type { DraftEntry } from "@/lib/draft";
 import {
@@ -27,17 +27,62 @@ const SLOT_BORDER_STYLE = {
   borderWidth: "calc(2px / var(--prep-zoom, 1))",
 };
 const SLOT_TRANSITION = "transition-colors duration-150";
-const SLOT_EMPTY_BORDER = `border border-dashed border-[#4a4540] ${SLOT_TRANSITION} group-hover/slot:border-[#a68b7c]`;
-const CHAMP_IMG_CLASS =
-  "block size-full object-cover object-[center_22%] select-none transition-[filter] duration-150 group-hover/slot:brightness-110";
+/**
+ * Paint at screen pixels (zoom × DPR), then shrink into the slot so the
+ * board's CSS scale() does not upsample a tiny bitmap.
+ */
+const SHARP_FACE_STYLE = {
+  width: "calc(100% * var(--prep-zoom, 1) * var(--prep-dpr, 1))",
+  height: "calc(100% * var(--prep-zoom, 1) * var(--prep-dpr, 1))",
+  transform:
+    "translate(-50%, -50%) scale(calc(1 / (var(--prep-zoom, 1) * var(--prep-dpr, 1))))",
+  borderRadius: "calc(0.375rem * var(--prep-zoom, 1) * var(--prep-dpr, 1))",
+} as const;
+/** Same pipeline as champ portraits — bitmap/SVG img + filter layer promotion. */
+const SLOT_IMG_CLASS =
+  "pointer-events-none absolute left-1/2 top-1/2 block max-w-none object-cover select-none [filter:brightness(1)] will-change-[filter] transition-[filter] duration-150 group-hover/slot:brightness-110";
+const CHAMP_IMG_STYLE = {
+  ...SHARP_FACE_STYLE,
+} as const;
 const CHAMP_HOVER_OVERLAY = `pointer-events-none absolute inset-0 z-[1] rounded-md border border-solid border-[#a68b7c] opacity-0 ${SLOT_TRANSITION} group-hover/slot:opacity-100`;
+
+/** High-res SVG faces so empty/plus slots share the champ img sharpness path. */
+function slotFaceDataUrl(kind: "label" | "plus", label = ""): string {
+  const safe = label.replace(/[<>&"']/g, "");
+  const fill = kind === "plus" ? PLUS_SLOT_FILL : SLOT_FILL;
+  const mark =
+    kind === "plus"
+      ? `<path d="M18 11v14M11 18h14" fill="none" stroke="#b8aea6" stroke-width="2.25" stroke-linecap="round"/>`
+      : `<text x="18" y="19.5" text-anchor="middle" dominant-baseline="middle" fill="${SLOT_LABEL}" font-family="ui-sans-serif,system-ui,Segoe UI,sans-serif" font-size="11" font-weight="700">${safe}</text>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 36 36"><rect x="1" y="1" width="34" height="34" rx="6" ry="6" fill="${fill}" stroke="#4a4540" stroke-width="1.5" stroke-dasharray="3.5 2.5"/>${mark}</svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+
+const PLUS_FACE_SRC = slotFaceDataUrl("plus");
 
 function championAt(entries: DraftEntry[], turnIndex: number): string | null {
   const entry = entries.find((e) => e.order === turnIndex);
   return entry?.champion?.trim() ? entry.champion : null;
 }
 
-const SLOT_HOVER_LABEL = "group-hover/slot:text-[#d1c7c1]";
+function SlotFaceImg({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      decoding="async"
+      className={SLOT_IMG_CLASS}
+      style={CHAMP_IMG_STYLE}
+    />
+  );
+}
 
 function PlusSlot({
   label,
@@ -47,22 +92,19 @@ function PlusSlot({
   onClick?: () => void;
 }) {
   return (
-    <div className={`group/slot relative ${SLOT_SIZE} shrink-0 overflow-hidden ${SLOT_ROUNDED}`}>
+    <div className={`group/slot relative ${SLOT_SIZE} shrink-0 ${SLOT_ROUNDED}`}>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           onClick?.();
         }}
-        className={`flex ${SLOT_SIZE} items-center justify-center ${SLOT_EMPTY_BORDER} hover:bg-white/[0.09] ${SLOT_ROUNDED}`}
-        style={{
-          ...SLOT_BORDER_STYLE,
-          backgroundColor: PLUS_SLOT_FILL,
-        }}
+        className="absolute inset-0 rounded-md border-0 bg-transparent p-0"
         aria-label={`Add ${label}`}
       >
-        <Plus className="h-4 w-4 text-[#b8aea6]" strokeWidth={2.25} />
+        <SlotFaceImg src={PLUS_FACE_SRC} alt="" />
       </button>
+      <div className={CHAMP_HOVER_OVERLAY} style={SLOT_BORDER_STYLE} aria-hidden />
     </div>
   );
 }
@@ -80,12 +122,6 @@ function DraftSlot({
   onClear?: () => void;
   onRemove?: () => void;
 }) {
-  const emptyClassName = `flex ${SLOT_SIZE} shrink-0 items-center justify-center ${SLOT_EMPTY_BORDER} ${SLOT_ROUNDED}`;
-  const emptyStyle = {
-    ...SLOT_BORDER_STYLE,
-    backgroundColor: SLOT_FILL,
-  };
-
   const deleteAction = onRemove ?? (champion && onClear ? onClear : undefined);
   const deleteLabel = onRemove ? "Remove slot" : "Remove champion";
 
@@ -96,15 +132,17 @@ function DraftSlot({
         e.stopPropagation();
         onClick?.();
       }}
-      className="absolute inset-0 border-0 bg-[#0d0d0d] p-0"
+      className="absolute inset-0 rounded-md border-0 bg-[#0d0d0d] p-0"
       title={champion}
       aria-label={`Edit ${label}: ${champion}`}
     >
       <img
-        src={championImageUrl(champion, "tile")}
+        src={championImageUrl(champion, "square")}
         alt={champion}
         draggable={false}
-        className={CHAMP_IMG_CLASS}
+        decoding="async"
+        className={SLOT_IMG_CLASS}
+        style={CHAMP_IMG_STYLE}
       />
     </button>
   ) : onClick ? (
@@ -114,40 +152,21 @@ function DraftSlot({
         e.stopPropagation();
         onClick();
       }}
-      className={emptyClassName}
-      style={emptyStyle}
+      className="absolute inset-0 rounded-md border-0 bg-transparent p-0"
       aria-label={`Add ${label}`}
     >
-      <span
-        className={`text-xs font-bold leading-none ${SLOT_HOVER_LABEL}`}
-        style={{ color: SLOT_LABEL }}
-      >
-        {label}
-      </span>
+      <SlotFaceImg src={slotFaceDataUrl("label", label)} alt={label} />
     </button>
   ) : (
-    <div className={emptyClassName} style={emptyStyle}>
-      <span
-        className={`text-xs font-bold leading-none ${SLOT_HOVER_LABEL}`}
-        style={{ color: SLOT_LABEL }}
-      >
-        {label}
-      </span>
+    <div className="absolute inset-0 rounded-md">
+      <SlotFaceImg src={slotFaceDataUrl("label", label)} alt={label} />
     </div>
   );
 
   return (
-    <div
-      className={`group/slot relative ${SLOT_SIZE} shrink-0 overflow-hidden ${SLOT_ROUNDED}`}
-    >
+    <div className={`group/slot relative ${SLOT_SIZE} shrink-0 ${SLOT_ROUNDED}`}>
       {slotBody}
-      {champion && (
-        <div
-          className={CHAMP_HOVER_OVERLAY}
-          style={SLOT_BORDER_STYLE}
-          aria-hidden
-        />
-      )}
+      <div className={CHAMP_HOVER_OVERLAY} style={SLOT_BORDER_STYLE} aria-hidden />
       {deleteAction && (
         <button
           type="button"
@@ -316,7 +335,7 @@ export function ScenarioCard({
 
   return (
     <article
-      className="group relative flex h-full w-full flex-col overflow-hidden rounded-md p-2 transition-opacity"
+      className="group relative flex h-full w-full flex-col overflow-visible rounded-md p-2 transition-opacity"
       style={{
         backgroundColor: SCENARIO_BG,
         border: `1px solid ${SCENARIO_BRONZE}`,
@@ -430,7 +449,7 @@ export function ScenarioCard({
           return (
             <div
               key={`${row.blue.turnIndex}-${row.red.turnIndex}`}
-              className="grid flex-1 items-center gap-2 overflow-hidden px-2 py-1"
+              className="grid flex-1 items-center gap-2 overflow-visible px-2 py-1"
               style={{
                 backgroundColor: rowBg,
                 minHeight: PREP_ROW_MIN_HEIGHT_PX,

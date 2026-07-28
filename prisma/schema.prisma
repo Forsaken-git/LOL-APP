@@ -106,11 +106,58 @@ model PlayerAccount {
   player       Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
   region       LoLRegion
   summonerName String
+  /** Riot PUUID — filled on first SoloQ/Match-V5 sync. */
+  puuid        String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt @default(now())
+  rankSnapshots SoloQRankSnapshot[]
+  matchSummaries SoloQMatchSummary[]
 
   @@unique([playerId, summonerName])
   @@index([playerId, region])
+  @@index([puuid])
+}
+
+/** Periodic SoloQ rank snapshot for LP / MMR velocity (ladder only). */
+model SoloQRankSnapshot {
+  id         String        @id @default(cuid())
+  accountId  String
+  account    PlayerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  capturedAt DateTime      @default(now())
+  tier       String
+  rank       String
+  lp         Int
+  wins       Int
+  losses     Int
+
+  @@index([accountId, capturedAt])
+}
+
+/**
+ * Cached SoloQ (queue) match summary from Match-V5.
+ * Never used for LCU customs/scrims — only allowed ranked/normal queue IDs.
+ */
+model SoloQMatchSummary {
+  id           String        @id @default(cuid())
+  accountId    String
+  account      PlayerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  matchId      String
+  playedAt     DateTime
+  queueId      Int
+  gameVersion  String
+  champion     String
+  win          Boolean
+  cs           Int
+  gold         Int
+  damage       Int
+  durationSec  Int
+  teamDamage   Int?
+  role         String?
+  syncedAt     DateTime      @default(now())
+
+  @@unique([accountId, matchId])
+  @@index([accountId, playedAt])
+  @@index([queueId])
 }
 
 model Event {

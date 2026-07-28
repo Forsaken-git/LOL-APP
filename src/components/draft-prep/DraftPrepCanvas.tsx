@@ -613,6 +613,8 @@ export function DraftPrepCanvas() {
             transform: `translate(${view.pan.x}px, ${view.pan.y}px) scale(${view.zoom})`,
             transformOrigin: "0 0",
             ["--prep-zoom" as string]: view.zoom,
+            ["--prep-dpr" as string]:
+              typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
           }}
         >
           <div
