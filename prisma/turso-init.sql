@@ -31,6 +31,7 @@ CREATE TABLE "PlayerAccount" (
     "playerId" TEXT NOT NULL,
     "region" TEXT NOT NULL,
     "summonerName" TEXT NOT NULL,
+    "puuid" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "PlayerAccount_playerId_fkey" FOREIGN KEY ("playerId") REFERENCES "Player" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -162,7 +163,55 @@ CREATE UNIQUE INDEX "Player_userId_key" ON "Player"("userId");
 CREATE INDEX "PlayerAccount_playerId_region_idx" ON "PlayerAccount"("playerId", "region");
 
 -- CreateIndex
+CREATE INDEX "PlayerAccount_puuid_idx" ON "PlayerAccount"("puuid");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PlayerAccount_playerId_summonerName_key" ON "PlayerAccount"("playerId", "summonerName");
+
+-- CreateTable
+CREATE TABLE "SoloQRankSnapshot" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "accountId" TEXT NOT NULL,
+    "capturedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "tier" TEXT NOT NULL,
+    "rank" TEXT NOT NULL,
+    "lp" INTEGER NOT NULL,
+    "wins" INTEGER NOT NULL,
+    "losses" INTEGER NOT NULL,
+    CONSTRAINT "SoloQRankSnapshot_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "PlayerAccount" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "SoloQRankSnapshot_accountId_capturedAt_idx" ON "SoloQRankSnapshot"("accountId", "capturedAt");
+
+-- CreateTable
+CREATE TABLE "SoloQMatchSummary" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "accountId" TEXT NOT NULL,
+    "matchId" TEXT NOT NULL,
+    "playedAt" DATETIME NOT NULL,
+    "queueId" INTEGER NOT NULL,
+    "gameVersion" TEXT NOT NULL,
+    "champion" TEXT NOT NULL,
+    "win" BOOLEAN NOT NULL,
+    "cs" INTEGER NOT NULL,
+    "gold" INTEGER NOT NULL,
+    "damage" INTEGER NOT NULL,
+    "durationSec" INTEGER NOT NULL,
+    "teamDamage" INTEGER,
+    "role" TEXT,
+    "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SoloQMatchSummary_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "PlayerAccount" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SoloQMatchSummary_accountId_matchId_key" ON "SoloQMatchSummary"("accountId", "matchId");
+
+-- CreateIndex
+CREATE INDEX "SoloQMatchSummary_accountId_playedAt_idx" ON "SoloQMatchSummary"("accountId", "playedAt");
+
+-- CreateIndex
+CREATE INDEX "SoloQMatchSummary_queueId_idx" ON "SoloQMatchSummary"("queueId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Event_externalId_key" ON "Event"("externalId");

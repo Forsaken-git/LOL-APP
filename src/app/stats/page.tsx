@@ -2,7 +2,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SoloQStatsView } from "@/components/stats/SoloQStatsView";
 import { loadSoloQRosterStats } from "@/lib/stats/soloq-roster";
 
-export const revalidate = 300;
+/** Avoid build-time prerender against Turso before schema patches are applied. */
+export const dynamic = "force-dynamic";
 
 export default async function StatsPage() {
   const stats = await loadSoloQRosterStats();

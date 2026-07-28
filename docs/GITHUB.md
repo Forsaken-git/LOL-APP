@@ -95,6 +95,12 @@ turso db shell YOUR_DB_NAME < prisma/turso-init.sql
 
 Replace `YOUR_DB_NAME` with your Turso database name.
 
+When the Prisma schema gains columns/tables after the DB already exists, apply the matching patch file instead of re-running the full init. Example (SoloQ advanced metrics):
+
+```powershell
+turso db shell YOUR_DB_NAME < prisma/turso-soloq-advanced.sql
+```
+
 ### 2d — Seed production once
 
 From your machine, with Turso credentials:
