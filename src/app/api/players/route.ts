@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { createPlayer, parseCreatePlayerBody } from "@/lib/players/create";
 import { activeTeamPlayerWhere } from "@/lib/players/team-player";
 import { prisma } from "@/lib/prisma";
+
+function revalidateRosterViews() {
+  revalidatePath("/players");
+  revalidatePath("/availability");
+  revalidatePath("/tierlists");
+  revalidatePath("/");
+  revalidatePath("/stats");
+}
 
 export async function GET() {
   const players = await prisma.player.findMany({
@@ -35,6 +44,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await createPlayer(parsed.data);
+    revalidateRosterViews();
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Could not create player";

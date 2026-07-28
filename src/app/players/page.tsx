@@ -25,7 +25,8 @@ const PlayersRoster = nextDynamic(
   },
 );
 
-export const revalidate = 30;
+/** Always fresh — roster mutations must show up immediately on Vercel. */
+export const dynamic = "force-dynamic";
 
 const rosterParticipationSelect = {
   matchId: true,

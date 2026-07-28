@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   ensurePlayerAccounts,
   parseAccountsBody,
@@ -90,6 +91,9 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   const saved = await ensurePlayerAccounts(id);
+
+  revalidatePath("/players");
+  revalidatePath("/stats");
 
   return NextResponse.json({
     accounts: saved,

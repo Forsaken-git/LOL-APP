@@ -4,8 +4,9 @@ import { ScheduleBoard } from "@/components/availability/ScheduleBoard";
 import { formatWeekRange, getWeekStart, parseAvailability } from "@/lib/week";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import type { AvailabilityData } from "@/lib/week";
+import { activeTeamPlayerWhere } from "@/lib/players/team-player";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export default async function AvailabilityPage() {
   const weekStart = getWeekStart();
@@ -13,7 +14,7 @@ export default async function AvailabilityPage() {
 
   const [playerRows, slots] = await Promise.all([
     prisma.player.findMany({
-      where: { active: true },
+      where: activeTeamPlayerWhere,
       select: {
         id: true,
         displayName: true,

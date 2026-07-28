@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { deletePlayer } from "@/lib/players/delete-player";
 import { loadPlayerProfileById } from "@/lib/players/load-player-profile";
 import { setPlayerActive } from "@/lib/players/set-active";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function revalidateRosterViews() {
+  revalidatePath("/players");
+  revalidatePath("/availability");
+  revalidatePath("/tierlists");
+  revalidatePath("/");
+  revalidatePath("/stats");
+}
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -19,6 +28,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
   try {
     const result = await deletePlayer(id);
+    revalidateRosterViews();
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Delete failed";
@@ -48,6 +58,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const result = await setPlayerActive(id, active);
+    revalidateRosterViews();
     return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Update failed";

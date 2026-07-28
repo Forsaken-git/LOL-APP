@@ -93,7 +93,10 @@ export function AddPlayerForm() {
       setTeamRole("FILL");
       setMemberRole("PLAYER");
       router.refresh();
-    } catch {
+      // Hard fallback if App Router still serves a stale RSC payload on Vercel.
+      setTimeout(() => {
+        router.refresh();
+      }, 250);    } catch {
       setError("Network error — try again");
     } finally {
       setLoading(false);

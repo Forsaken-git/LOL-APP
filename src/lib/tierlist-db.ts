@@ -1,5 +1,6 @@
 import type { LoLRole, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { activeTeamPlayerWhere } from "@/lib/players/team-player";
 
 export type TierlistPlayerSummary = {
   id: string;
@@ -50,7 +51,7 @@ export async function setTierlistPlayerId(
 
 export async function listActivePlayers(): Promise<TierlistPlayerSummary[]> {
   return prisma.player.findMany({
-    where: { active: true },
+    where: activeTeamPlayerWhere,
     select: { id: true, displayName: true, teamRole: true, memberRole: true },
   });
 }
