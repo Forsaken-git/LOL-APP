@@ -7,6 +7,7 @@ import {
   Users,
   Ban,
   CalendarClock,
+  ChartColumn,
 } from "lucide-react";
 
 export type NavItem = {
@@ -29,6 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
     mobilePrimary: true,
   },
   { href: "/players", label: "Players", icon: Users, mobilePrimary: true },
+  { href: "/stats", label: "Stats", icon: ChartColumn },
   { href: "/tierlists", label: "Tierlists", icon: ListOrdered },
 ];
 

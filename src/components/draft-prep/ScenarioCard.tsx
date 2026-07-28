@@ -29,7 +29,7 @@ const SLOT_BORDER_STYLE = {
 const SLOT_TRANSITION = "transition-colors duration-150";
 const SLOT_EMPTY_BORDER = `border border-dashed border-[#4a4540] ${SLOT_TRANSITION} group-hover/slot:border-[#a68b7c]`;
 const CHAMP_IMG_CLASS =
-  "block size-full object-cover object-center select-none transition-[filter] duration-150 group-hover/slot:brightness-110";
+  "block size-full object-cover object-[center_22%] select-none transition-[filter] duration-150 group-hover/slot:brightness-110";
 const CHAMP_HOVER_OVERLAY = `pointer-events-none absolute inset-0 z-[1] rounded-md border border-solid border-[#a68b7c] opacity-0 ${SLOT_TRANSITION} group-hover/slot:opacity-100`;
 
 function championAt(entries: DraftEntry[], turnIndex: number): string | null {
@@ -101,7 +101,7 @@ function DraftSlot({
       aria-label={`Edit ${label}: ${champion}`}
     >
       <img
-        src={championImageUrl(champion)}
+        src={championImageUrl(champion, "tile")}
         alt={champion}
         draggable={false}
         className={CHAMP_IMG_CLASS}
