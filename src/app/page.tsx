@@ -72,13 +72,6 @@ export default async function DashboardPage() {
         <SyncStatus />
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Games" value={String(stats.total)} />
-        <StatTile label="Wins" value={String(stats.wins)} accent="win" />
-        <StatTile label="Losses" value={String(stats.losses)} accent="loss" />
-        <StatTile label="Win rate" value={`${stats.winRate}%`} accent="accent" />
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-4">
         <div className="lg:col-span-1">
           <OverviewCalendar />
@@ -125,6 +118,13 @@ export default async function DashboardPage() {
         <Card title="Upcoming" className="lg:col-span-1">
           <UpcomingEvents events={upcomingEventItems} />
         </Card>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Games" value={String(stats.total)} />
+        <StatTile label="Wins" value={String(stats.wins)} accent="win" />
+        <StatTile label="Losses" value={String(stats.losses)} accent="loss" />
+        <StatTile label="Win rate" value={`${stats.winRate}%`} accent="accent" />
       </div>
 
       <RecentMatches encounters={recentEncounters} />
