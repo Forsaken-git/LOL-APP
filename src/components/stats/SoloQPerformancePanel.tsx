@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
-import { championImageUrl } from "@/lib/champions";
+import { ChampionIcon } from "@/components/ui/ChampionIcon";
 import { formatDateTime24 } from "@/lib/datetime";
 import { formatRegionLabel } from "@/lib/player-accounts-shared";
 import type { SoloQAdvancedMetrics } from "@/lib/stats/soloq-advanced-types";
@@ -394,11 +394,7 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
                         >
                           <td className="px-3 py-1.5">
                             <div className="flex items-center gap-2">
-                              <img
-                                src={championImageUrl(c.champion, "square")}
-                                alt=""
-                                className="h-6 w-6 shrink-0 rounded-md border border-border"
-                              />
+                              <ChampionIcon champion={c.champion} />
                               <span className="font-medium text-foreground">
                                 {c.champion}
                               </span>

@@ -15,14 +15,29 @@ const res = await fetch(
 );
 const { data } = await res.json();
 
+const champions = Object.values(data);
+const isAliasSkin = (id) => id.startsWith("Jade_");
+
 const map = {};
-for (const key of Object.keys(data)) {
-  const c = data[key];
-  map[c.name] = c.id;
+
+// Always index by id / numeric key / Champion{id}
+for (const c of champions) {
   map[c.id] = c.id;
   map[c.key] = c.id;
   map[`Champion${c.key}`] = c.id;
 }
+
+// Prefer canonical champions for display-name lookups so Jade_/event
+// duplicates (same name, different id) don't steal Ahri → Jade_Ahri, etc.
+for (const c of champions) {
+  if (isAliasSkin(c.id)) continue;
+  map[c.name] = c.id;
+}
+for (const c of champions) {
+  if (!isAliasSkin(c.id)) continue;
+  if (map[c.name] == null) map[c.name] = c.id;
+}
+
 map["Nunu"] = "Nunu";
 map["Nunu & Willump"] = "Nunu";
 map["LeBlanc"] = "Leblanc";
@@ -44,3 +59,6 @@ ${body}
 const target = join(root, "src/lib/champion-image-keys.generated.ts");
 writeFileSync(target, out, "utf8");
 console.log(`Wrote ${target} (${entries.length} entries, patch ${version})`);
+console.log(
+  `Ahri→${map.Ahri}, Ashe→${map.Ashe}, Locke→${map.Locke}, Lucian→${map.Lucian}`,
+);
