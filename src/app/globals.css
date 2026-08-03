@@ -155,7 +155,85 @@ button.btn-ghost:hover {
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 20%, transparent 75%);
 }
 
+/* Mobile chrome — scales with viewport width/height (phones + narrow monitors) */
+.mobile-top-bar {
+  min-height: clamp(2.75rem, 8vmin, 3.5rem);
+  padding-top: max(0.35rem, env(safe-area-inset-top));
+  padding-bottom: 0.35rem;
+  padding-left: max(0.75rem, env(safe-area-inset-left));
+  padding-right: max(0.75rem, env(safe-area-inset-right));
+}
+
+.mobile-menu-hit {
+  width: clamp(2.25rem, 7vmin, 2.75rem);
+  height: clamp(2.25rem, 7vmin, 2.75rem);
+}
+
+.mobile-menu-icon {
+  width: clamp(1rem, 3.2vmin, 1.25rem);
+  height: clamp(1rem, 3.2vmin, 1.25rem);
+}
+
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.mobile-bottom-nav-inner {
+  min-height: clamp(3.25rem, 10vmin, 4rem);
+  padding: 0.25rem clamp(0.25rem, 1.5vw, 0.5rem);
+}
+
+.mobile-bottom-icon {
+  width: clamp(1.05rem, 3.4vmin, 1.25rem);
+  height: clamp(1.05rem, 3.4vmin, 1.25rem);
+}
+
+.mobile-bottom-label {
+  font-size: clamp(0.5625rem, 2.4vw, 0.6875rem);
+  font-weight: 500;
+  line-height: 1.1;
+  max-width: 100%;
+}
+
+/* Keep page content clear of the fixed bottom nav below lg */
+.mobile-main-pad {
+  padding-bottom: calc(clamp(3.25rem, 10vmin, 4rem) + env(safe-area-inset-bottom) + 0.75rem);
+}
+
+@media (min-width: 1024px) {
+  .mobile-main-pad {
+    padding-bottom: 0;
+  }
+}
+
+/* Short landscape phones: tighten chrome so content still fits */
+@media (max-height: 480px) {
+  .mobile-top-bar {
+    min-height: 2.5rem;
+    padding-top: max(0.2rem, env(safe-area-inset-top));
+    padding-bottom: 0.2rem;
+  }
+
+  .mobile-bottom-nav-inner {
+    min-height: 2.75rem;
+  }
+
+  .mobile-bottom-label {
+    display: none;
+  }
+
+  .mobile-main-pad {
+    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom) + 0.5rem);
+  }
+}
+
 /* Schedule grid — plain CSS so colors always apply (Tailwind skips composed const strings) */
+.schedule-paint-grid {
+  touch-action: none;
+}
+
 .schedule-slot {
   display: block;
   height: 1.75rem;
@@ -165,6 +243,7 @@ button.btn-ghost:hover {
   margin: 0;
   appearance: none;
   cursor: pointer;
+  touch-action: none;
   border-radius: 0.375rem;
   border: 1px solid rgba(166, 139, 124, 0.18);
   background: transparent;
@@ -209,4 +288,11 @@ button.btn-ghost:hover {
 .schedule-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+}
+
+/* While painting availability, block scroll/bounce so drag fills cells only */
+.schedule-scroll--painting {
+  touch-action: none;
+  overflow: hidden;
+  overscroll-behavior: none;
 }

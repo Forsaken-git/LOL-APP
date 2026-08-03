@@ -353,6 +353,8 @@ function TimeGrid({
   onChange: (updater: (prev: AvailabilityData) => AvailabilityData) => void;
 }) {
   const paintRef = useRef<{ active: boolean; on: boolean } | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isPainting, setIsPainting] = useState(false);
 
   const applyCell = useCallback(
     (day: Weekday, hour: number, on: boolean) => {
@@ -361,34 +363,99 @@ function TimeGrid({
     [onChange],
   );
 
-  const startPaint = (day: Weekday, hour: number) => {
-    const on = !isHourSelected(data, day, hour);
-    paintRef.current = { active: true, on };
-    applyCell(day, hour, on);
-  };
+  const continuePaint = useCallback(
+    (day: Weekday, hour: number) => {
+      if (!paintRef.current?.active) return;
+      applyCell(day, hour, paintRef.current.on);
+    },
+    [applyCell],
+  );
 
-  const continuePaint = (day: Weekday, hour: number) => {
+  const startPaint = useCallback(
+    (day: Weekday, hour: number) => {
+      const on = !isHourSelected(data, day, hour);
+      paintRef.current = { active: true, on };
+      setIsPainting(true);
+      applyCell(day, hour, on);
+    },
+    [applyCell, data],
+  );
+
+  const endPaint = useCallback(() => {
     if (!paintRef.current?.active) return;
-    applyCell(day, hour, paintRef.current.on);
-  };
-
-  const endPaint = () => {
     paintRef.current = null;
-  };
+    setIsPainting(false);
+  }, []);
 
   useEffect(() => {
     const stop = () => endPaint();
     window.addEventListener("mouseup", stop);
     window.addEventListener("touchend", stop);
+    window.addEventListener("touchcancel", stop);
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
     return () => {
       window.removeEventListener("mouseup", stop);
       window.removeEventListener("touchend", stop);
+      window.removeEventListener("touchcancel", stop);
+      window.removeEventListener("pointerup", stop);
+      window.removeEventListener("pointercancel", stop);
     };
-  }, []);
+  }, [endPaint]);
+
+  // While painting: block scroll (non-passive touchmove) and paint cells under the finger.
+  useEffect(() => {
+    if (!isPainting) return;
+
+    const el = scrollRef.current;
+    const main = document.querySelector("main");
+    const prevBody = document.body.style.overflow;
+    const prevMain = main instanceof HTMLElement ? main.style.overflow : "";
+    document.body.style.overflow = "hidden";
+    if (main instanceof HTMLElement) main.style.overflow = "hidden";
+
+    const paintAt = (clientX: number, clientY: number) => {
+      const hit = document.elementFromPoint(clientX, clientY);
+      const btn = hit?.closest<HTMLButtonElement>("button[data-hour][data-day]");
+      if (btn?.dataset.day && btn.dataset.hour) {
+        continuePaint(btn.dataset.day as Weekday, Number(btn.dataset.hour));
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!paintRef.current?.active) return;
+      paintAt(e.clientX, e.clientY);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!paintRef.current?.active) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) paintAt(touch.clientX, touch.clientY);
+    };
+
+    window.addEventListener("pointermove", onPointerMove);
+    el?.addEventListener("touchmove", onTouchMove, { passive: false });
+    // Catch moves that leave the grid (document is often the only reliable target).
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevBody;
+      if (main instanceof HTMLElement) main.style.overflow = prevMain;
+      window.removeEventListener("pointermove", onPointerMove);
+      el?.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchmove", onTouchMove);
+    };
+  }, [isPainting, continuePaint]);
 
   return (
-    <div className="schedule-scroll overflow-x-auto p-2 sm:p-3">
-      <table className="w-full min-w-[24rem] border-separate border-spacing-1 select-none sm:min-w-[28rem]">
+    <div
+      ref={scrollRef}
+      className={`schedule-scroll overflow-x-auto p-2 sm:p-3 ${
+        isPainting ? "schedule-scroll--painting" : ""
+      }`}
+    >
+      <table className="schedule-paint-grid w-full min-w-[24rem] border-separate border-spacing-1 select-none sm:min-w-[28rem]">
         <thead>
           <tr>
             <th className="sticky left-0 z-10 w-11 bg-surface p-0" />
@@ -419,32 +486,12 @@ function TimeGrid({
                       type="button"
                       aria-pressed={on}
                       className="schedule-slot"
-                      onMouseDown={(e) => {
+                      onPointerDown={(e) => {
+                        if (e.pointerType === "mouse" && e.button !== 0) return;
                         e.preventDefault();
                         startPaint(day, hour);
                       }}
                       onMouseEnter={() => continuePaint(day, hour)}
-                      onTouchStart={(e) => {
-                        e.preventDefault();
-                        startPaint(day, hour);
-                      }}
-                      onTouchMove={(e) => {
-                        const touch = e.touches[0];
-                        if (!touch) return;
-                        const el = document.elementFromPoint(
-                          touch.clientX,
-                          touch.clientY,
-                        );
-                        const btn = el?.closest<HTMLButtonElement>(
-                          "button[data-hour][data-day]",
-                        );
-                        if (btn?.dataset.day && btn.dataset.hour) {
-                          continuePaint(
-                            btn.dataset.day as Weekday,
-                            Number(btn.dataset.hour),
-                          );
-                        }
-                      }}
                       data-day={day}
                       data-hour={hour}
                     />

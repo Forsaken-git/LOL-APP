@@ -11,13 +11,15 @@ function Section({
   title,
   description,
   children,
+  className = "",
 }: {
   title: string;
   description?: string;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <section className="space-y-2">
+    <section className={`space-y-2 ${className}`.trim()}>
       <div>
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {description ? (
@@ -180,7 +182,7 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
   const month = metrics.volume.windows.find((w) => w.days === 30);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-4 py-3 sm:px-5 sm:py-4">
+    <div className="flex h-full min-h-0 flex-col px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
       <div className="mb-3 flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/80 pb-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
@@ -226,8 +228,8 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
           Riot. Metrics appear here after the first sync.
         </p>
       ) : (
-        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-2 lg:gap-5 lg:overflow-hidden">
-          <div className="min-h-0 space-y-4 lg:overflow-y-auto lg:pr-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain lg:grid lg:grid-cols-2 lg:gap-5 lg:overflow-hidden">
+          <div className="space-y-5 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <Section
               title="In-game averages"
               description="Per-minute and efficiency across cached games"
@@ -325,14 +327,14 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
             </Section>
           </div>
 
-          <div className="flex min-h-0 flex-col gap-4 lg:overflow-hidden">
+          <div className="flex flex-col gap-5 lg:min-h-0 lg:overflow-hidden">
             {metrics.patchAdaptability.length > 0 ? (
               <Section
                 title="By patch"
                 description="Win rate per game version"
               >
-                <div className="overflow-hidden rounded-xl border border-border">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[18rem] text-left text-sm">
                     <thead className="border-b border-border bg-inset/60 text-[11px] uppercase tracking-wider text-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Patch</th>
@@ -371,9 +373,10 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
               <Section
                 title="Champions played"
                 description="Sorted by games in the SoloQ cache"
+                className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
               >
-                <div className="min-h-0 overflow-auto rounded-xl border border-border lg:max-h-full lg:flex-1">
-                  <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto rounded-xl border border-border lg:min-h-0 lg:flex-1 lg:overflow-auto">
+                  <table className="w-full min-w-[28rem] text-left text-sm">
                     <thead className="sticky top-0 border-b border-border bg-inset/95 text-[11px] uppercase tracking-wider text-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Champion</th>
@@ -394,7 +397,7 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
                               <img
                                 src={championImageUrl(c.champion, "square")}
                                 alt=""
-                                className="h-6 w-6 rounded-md border border-border"
+                                className="h-6 w-6 shrink-0 rounded-md border border-border"
                               />
                               <span className="font-medium text-foreground">
                                 {c.champion}

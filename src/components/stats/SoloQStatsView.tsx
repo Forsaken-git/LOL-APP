@@ -108,7 +108,7 @@ function SoloQPlayerDetailModal({
       />
       <div className="relative z-10 flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden rounded-t-2xl border border-border bg-surface shadow-2xl sm:h-[min(94vh,920px)] sm:rounded-2xl">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-5">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-foreground">
               {player.displayName}
             </h2>
@@ -163,7 +163,9 @@ function SoloQPlayerDetailModal({
 
         <div
           className={`min-h-0 flex-1 ${
-            tab === "performance" ? "overflow-hidden" : "overflow-y-auto"
+            tab === "performance"
+              ? "overflow-hidden"
+              : "overflow-x-auto overflow-y-auto"
           }`}
         >
           {tab === "accounts" ? (

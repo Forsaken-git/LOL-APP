@@ -728,7 +728,12 @@ export function DraftPrepCanvas() {
         )}
       </div>
 
-      <div className="absolute bottom-4 left-4 z-10 max-w-xs rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur-sm">
+      <div
+        className="absolute left-4 z-10 max-w-xs rounded-lg border border-border bg-surface/95 px-2.5 py-1.5 text-[11px] text-muted shadow-lg backdrop-blur-sm"
+        style={{
+          bottom: "max(1rem, env(safe-area-inset-bottom))",
+        }}
+      >
         {syncState === "saving"
           ? "Saving…"
           : syncState === "error"
@@ -736,7 +741,12 @@ export function DraftPrepCanvas() {
             : "Synced to team board"}
       </div>
 
-      <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 rounded-lg border border-border bg-surface/95 p-1 shadow-lg backdrop-blur-sm">
+      <div
+        className="absolute right-4 z-10 flex items-center gap-1 rounded-lg border border-border bg-surface/95 p-1 shadow-lg backdrop-blur-sm"
+        style={{
+          bottom: "max(1rem, env(safe-area-inset-bottom))",
+        }}
+      >
         <button
           type="button"
           className="btn-ghost flex h-8 w-8 items-center justify-center p-0"

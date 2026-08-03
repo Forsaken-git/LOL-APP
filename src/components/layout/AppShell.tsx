@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
-import { MobileMenuButton } from "./MobileMenuButton";
+import { MobileBottomNav, MobileTopBar } from "./MobileChrome";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -32,14 +32,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
       />
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           className="pointer-events-none absolute inset-0 mesh-bg opacity-25"
           aria-hidden
         />
+        <MobileTopBar onOpenMenu={() => setMobileMenuOpen(true)} />
         <main
           className={`relative flex-1 lg:pb-0 ${
-            isDraftPrep ? "flex min-h-0 flex-col overflow-hidden" : "overflow-auto"
+            isDraftPrep
+              ? "flex min-h-0 flex-col overflow-hidden"
+              : "mobile-main-pad overflow-auto"
           }`}
         >
           <div
@@ -52,8 +55,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {children}
           </div>
         </main>
+        {!isDraftPrep && (
+          <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} />
+        )}
       </div>
-      <MobileMenuButton onOpen={() => setMobileMenuOpen(true)} />
     </div>
   );
 }
