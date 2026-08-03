@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { ChampionIcon } from "@/components/ui/ChampionIcon";
 import { formatDateTime24 } from "@/lib/datetime";
 import { formatRegionLabel } from "@/lib/player-accounts-shared";
+import type { TeamRole } from "@/lib/player-profile-types";
 import type { SoloQAdvancedMetrics } from "@/lib/stats/soloq-advanced-types";
 
 function Section({
@@ -72,7 +73,13 @@ function consistencyLabel(stdDev: number | null): {
   return { value: "Volatile", detail: "Big swings game to game" };
 }
 
-export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
+export function SoloQPerformancePanel({
+  playerId,
+  teamRole,
+}: {
+  playerId: string;
+  teamRole?: TeamRole;
+}) {
   const [metrics, setMetrics] = useState<SoloQAdvancedMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -180,6 +187,8 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
   const consistency = consistencyLabel(metrics.volume.consistencyStdDev);
   const week = metrics.volume.windows.find((w) => w.days === 7);
   const month = metrics.volume.windows.find((w) => w.days === 30);
+  const showVision =
+    teamRole === "SUPPORT" || metrics.supportFocus;
 
   return (
     <div className="flex h-full min-h-0 flex-col px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5 sm:py-4">
@@ -235,10 +244,29 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
               description="Per-minute and efficiency across cached games"
             >
               <div className="grid grid-cols-2 gap-2 xl:grid-cols-3">
-                <MetricTile
-                  label="CS / min"
-                  value={fmt(metrics.averages.csPerMin, 1)}
-                />
+                {showVision ? (
+                  <>
+                    <MetricTile
+                      label="Vision"
+                      value={fmt(metrics.averages.visionScore, 1)}
+                      detail="Avg score / game"
+                    />
+                    <MetricTile
+                      label="Vision / min"
+                      value={fmt(metrics.averages.visionPerMin, 1)}
+                    />
+                    <MetricTile
+                      label="Control wards"
+                      value={fmt(metrics.averages.controlWardsBought, 1)}
+                      detail="Bought / game"
+                    />
+                  </>
+                ) : (
+                  <MetricTile
+                    label="CS / min"
+                    value={fmt(metrics.averages.csPerMin, 1)}
+                  />
+                )}
                 <MetricTile
                   label="Gold / min"
                   value={fmt(metrics.averages.goldPerMin, 0)}
@@ -332,10 +360,11 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
               <Section
                 title="By patch"
                 description="Win rate per game version"
+                className="shrink-0"
               >
-                <div className="overflow-x-auto rounded-xl border border-border">
+                <div className="max-h-40 overflow-auto rounded-xl border border-border sm:max-h-44">
                   <table className="w-full min-w-[18rem] text-left text-sm">
-                    <thead className="border-b border-border bg-inset/60 text-[11px] uppercase tracking-wider text-muted">
+                    <thead className="sticky top-0 border-b border-border bg-inset/95 text-[11px] uppercase tracking-wider text-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Patch</th>
                         <th className="px-3 py-2 font-medium">Games</th>
@@ -344,7 +373,7 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {metrics.patchAdaptability.slice(0, 6).map((p) => (
+                      {metrics.patchAdaptability.map((p) => (
                         <tr
                           key={p.patch}
                           className="border-b border-border/60 last:border-0"
@@ -373,17 +402,31 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
               <Section
                 title="Champions played"
                 description="Sorted by games in the SoloQ cache"
-                className="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col"
+                className="flex min-h-56 flex-col lg:min-h-0 lg:flex-1"
               >
-                <div className="overflow-x-auto rounded-xl border border-border lg:min-h-0 lg:flex-1 lg:overflow-auto">
-                  <table className="w-full min-w-[28rem] text-left text-sm">
+                <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border">
+                  <table
+                    className={`w-full text-left text-sm ${
+                      showVision ? "min-w-[32rem]" : "min-w-[28rem]"
+                    }`}
+                  >
                     <thead className="sticky top-0 border-b border-border bg-inset/95 text-[11px] uppercase tracking-wider text-muted">
                       <tr>
                         <th className="px-3 py-2 font-medium">Champion</th>
                         <th className="px-3 py-2 font-medium">Games</th>
                         <th className="px-3 py-2 font-medium">WR</th>
-                        <th className="px-3 py-2 font-medium">CS/min</th>
-                        <th className="px-3 py-2 font-medium">Dmg/gold</th>
+                        {showVision ? (
+                          <>
+                            <th className="px-3 py-2 font-medium">Vision</th>
+                            <th className="px-3 py-2 font-medium">Vis/min</th>
+                            <th className="px-3 py-2 font-medium">Ctrl</th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-3 py-2 font-medium">CS/min</th>
+                            <th className="px-3 py-2 font-medium">Dmg/gold</th>
+                          </>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -406,12 +449,34 @@ export function SoloQPerformancePanel({ playerId }: { playerId: string }) {
                           <td className="px-3 py-1.5 tabular-nums text-foreground">
                             {c.winRate}%
                           </td>
-                          <td className="px-3 py-1.5 tabular-nums text-muted">
-                            {c.avgCsPerMin.toFixed(1)}
-                          </td>
-                          <td className="px-3 py-1.5 tabular-nums text-muted">
-                            {c.avgDamagePerGold.toFixed(2)}
-                          </td>
+                          {showVision ? (
+                            <>
+                              <td className="px-3 py-1.5 tabular-nums text-muted">
+                                {c.avgVisionScore != null
+                                  ? c.avgVisionScore.toFixed(1)
+                                  : "—"}
+                              </td>
+                              <td className="px-3 py-1.5 tabular-nums text-muted">
+                                {c.avgVisionPerMin != null
+                                  ? c.avgVisionPerMin.toFixed(1)
+                                  : "—"}
+                              </td>
+                              <td className="px-3 py-1.5 tabular-nums text-muted">
+                                {c.avgControlWardsBought != null
+                                  ? c.avgControlWardsBought.toFixed(1)
+                                  : "—"}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-3 py-1.5 tabular-nums text-muted">
+                                {c.avgCsPerMin.toFixed(1)}
+                              </td>
+                              <td className="px-3 py-1.5 tabular-nums text-muted">
+                                {c.avgDamagePerGold.toFixed(2)}
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>

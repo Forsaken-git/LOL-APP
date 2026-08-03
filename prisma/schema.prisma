@@ -153,6 +153,10 @@ model SoloQMatchSummary {
   durationSec  Int
   teamDamage   Int?
   role         String?
+  /** Match-V5 visionScore — used for support averages. */
+  visionScore  Int?
+  /** Match-V5 visionWardsBoughtInGame (control wards purchased). */
+  controlWardsBought Int?
   syncedAt     DateTime      @default(now())
 
   @@unique([accountId, matchId])

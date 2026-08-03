@@ -170,9 +170,14 @@ export async function syncPlayerSoloQAdvanced(
 
     const existing = await prisma.soloQMatchSummary.findMany({
       where: { accountId: account.id },
-      select: { matchId: true },
+      select: { matchId: true, visionScore: true, controlWardsBought: true },
     });
-    const known = new Set(existing.map((m) => m.matchId));
+    // Re-fetch rows missing vision fields after schema upgrades.
+    const known = new Set(
+      existing
+        .filter((m) => m.visionScore != null && m.controlWardsBought != null)
+        .map((m) => m.matchId),
+    );
 
     const fetched = await fetchSoloQMatchExtracts(
       puuidResult.puuid,
@@ -214,6 +219,8 @@ export async function syncPlayerSoloQAdvanced(
           durationSec: match.durationSec,
           teamDamage: match.teamDamage,
           role: match.role,
+          visionScore: match.visionScore,
+          controlWardsBought: match.controlWardsBought,
         },
         update: {
           playedAt: match.playedAt,
@@ -227,6 +234,8 @@ export async function syncPlayerSoloQAdvanced(
           durationSec: match.durationSec,
           teamDamage: match.teamDamage,
           role: match.role,
+          visionScore: match.visionScore,
+          controlWardsBought: match.controlWardsBought,
           syncedAt: new Date(),
         },
       });
@@ -303,6 +312,9 @@ export async function loadPlayerSoloQAdvanced(
       damage: m.damage,
       durationSec: m.durationSec,
       teamDamage: m.teamDamage,
+      role: m.role,
+      visionScore: m.visionScore,
+      controlWardsBought: m.controlWardsBought,
     })),
     snapshots: snapshots.map((s) => ({
       accountId: s.accountId,

@@ -53,6 +53,8 @@ type MatchDto = {
       neutralMinionsKilled: number;
       goldEarned: number;
       totalDamageDealtToChampions: number;
+      visionScore?: number;
+      visionWardsBoughtInGame?: number;
       teamId: number;
       teamPosition?: string;
       individualPosition?: string;
@@ -73,6 +75,8 @@ export type SoloQMatchExtract = {
   durationSec: number;
   teamDamage: number;
   role: string | null;
+  visionScore: number;
+  controlWardsBought: number;
 };
 
 export async function resolvePuuidByRiotId(
@@ -223,6 +227,8 @@ export function extractSoloQMatchForPuuid(
     durationSec: Math.max(1, durationSec),
     teamDamage,
     role: role && role !== "Invalid" ? role : null,
+    visionScore: me.visionScore ?? 0,
+    controlWardsBought: me.visionWardsBoughtInGame ?? 0,
   };
 }
 

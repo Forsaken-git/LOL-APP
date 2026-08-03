@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS "SoloQMatchSummary" (
     "durationSec" INTEGER NOT NULL,
     "teamDamage" INTEGER,
     "role" TEXT,
+    "visionScore" INTEGER,
+    "controlWardsBought" INTEGER,
     "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "SoloQMatchSummary_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "PlayerAccount" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -51,3 +53,7 @@ CREATE INDEX IF NOT EXISTS "SoloQMatchSummary_accountId_playedAt_idx"
 
 CREATE INDEX IF NOT EXISTS "SoloQMatchSummary_queueId_idx"
   ON "SoloQMatchSummary"("queueId");
+
+-- Existing DBs (ignore errors if columns already exist):
+ALTER TABLE "SoloQMatchSummary" ADD COLUMN "visionScore" INTEGER;
+ALTER TABLE "SoloQMatchSummary" ADD COLUMN "controlWardsBought" INTEGER;

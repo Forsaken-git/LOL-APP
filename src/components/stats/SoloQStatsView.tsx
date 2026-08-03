@@ -212,7 +212,10 @@ function SoloQPlayerDetailModal({
               </tbody>
             </table>
           ) : (
-            <SoloQPerformancePanel playerId={player.playerId} />
+            <SoloQPerformancePanel
+              playerId={player.playerId}
+              teamRole={player.teamRole as TeamRole}
+            />
           )}
         </div>
       </div>

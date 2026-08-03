@@ -6,7 +6,12 @@ export type SoloQChampStat = {
   wins: number;
   winRate: number;
   avgCsPerMin: number;
+  avgVisionScore: number | null;
+  avgVisionPerMin: number | null;
+  avgControlWardsBought: number | null;
   avgDamagePerGold: number;
+  /** True when most games on this champ were support (UTILITY). */
+  primarilySupport: boolean;
 };
 
 export type SoloQPatchStat = {
@@ -28,8 +33,15 @@ export type SoloQAdvancedMetrics = {
   source: "soloq_riot";
   matchCount: number;
   lastSyncedAt: string | null;
+  /** Majority of cached games were played as UTILITY / support. */
+  supportFocus: boolean;
   averages: {
     csPerMin: number | null;
+    /** Average vision score per game. */
+    visionScore: number | null;
+    visionPerMin: number | null;
+    /** Average control wards bought per game. */
+    controlWardsBought: number | null;
     goldPerMin: number | null;
     damagePerMin: number | null;
     /** Damage per gold earned. */

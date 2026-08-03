@@ -18,6 +18,9 @@ type MatchRow = {
   damage: number;
   durationSec: number;
   teamDamage: number | null;
+  role: string | null;
+  visionScore: number | null;
+  controlWardsBought: number | null;
 };
 
 type SnapshotRow = {
@@ -106,10 +109,26 @@ function volumeWindows(matches: MatchRow[]): SoloQVolumeWindow[] {
   });
 }
 
+function isSupportMatchRole(role: string | null | undefined): boolean {
+  if (!role) return false;
+  const r = role.toUpperCase();
+  return r === "UTILITY" || r === "SUPPORT";
+}
+
 function championStats(matches: MatchRow[]): SoloQChampStat[] {
   const map = new Map<
     string,
-    { games: number; wins: number; csPerMin: number; dmgPerGold: number }
+    {
+      games: number;
+      wins: number;
+      csPerMin: number;
+      visionScore: number;
+      visionPerMin: number;
+      controlWards: number;
+      visionGames: number;
+      dmgPerGold: number;
+      supportGames: number;
+    }
   >();
 
   for (const m of matches) {
@@ -119,12 +138,24 @@ function championStats(matches: MatchRow[]): SoloQChampStat[] {
       games: 0,
       wins: 0,
       csPerMin: 0,
+      visionScore: 0,
+      visionPerMin: 0,
+      controlWards: 0,
+      visionGames: 0,
       dmgPerGold: 0,
+      supportGames: 0,
     };
     cur.games += 1;
     if (m.win) cur.wins += 1;
     cur.csPerMin += m.cs / mins;
     cur.dmgPerGold += m.gold > 0 ? m.damage / m.gold : 0;
+    if (m.visionScore != null) {
+      cur.visionScore += m.visionScore;
+      cur.visionPerMin += m.visionScore / mins;
+      cur.controlWards += m.controlWardsBought ?? 0;
+      cur.visionGames += 1;
+    }
+    if (isSupportMatchRole(m.role)) cur.supportGames += 1;
     map.set(name, cur);
   }
 
@@ -135,7 +166,14 @@ function championStats(matches: MatchRow[]): SoloQChampStat[] {
       wins: s.wins,
       winRate: winRate(s.wins, s.games),
       avgCsPerMin: round(s.csPerMin / s.games, 1),
+      avgVisionScore:
+        s.visionGames > 0 ? round(s.visionScore / s.visionGames, 1) : null,
+      avgVisionPerMin:
+        s.visionGames > 0 ? round(s.visionPerMin / s.visionGames, 1) : null,
+      avgControlWardsBought:
+        s.visionGames > 0 ? round(s.controlWards / s.visionGames, 1) : null,
       avgDamagePerGold: round(s.dmgPerGold / s.games, 3),
+      primarilySupport: s.supportGames / s.games >= 0.5,
     }))
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 }
@@ -312,18 +350,30 @@ export function aggregateSoloQAdvanced(input: {
   const { accounts, matches, snapshots, lastSyncedAt } = input;
 
   let csPerMinSum = 0;
+  let visionScoreSum = 0;
+  let visionPerMinSum = 0;
+  let controlWardsSum = 0;
+  let visionN = 0;
   let goldPerMinSum = 0;
   let dmgPerMinSum = 0;
   let goldEffSum = 0;
   let damageShareSum = 0;
   let damageShareN = 0;
   let timed = 0;
+  let supportGames = 0;
 
   for (const m of matches) {
     const mins = Math.max(m.durationSec / 60, 1 / 60);
     csPerMinSum += m.cs / mins;
     goldPerMinSum += m.gold / mins;
     dmgPerMinSum += m.damage / mins;
+    if (m.visionScore != null) {
+      visionScoreSum += m.visionScore;
+      visionPerMinSum += m.visionScore / mins;
+      controlWardsSum += m.controlWardsBought ?? 0;
+      visionN += 1;
+    }
+    if (isSupportMatchRole(m.role)) supportGames += 1;
     if (m.gold > 0) {
       goldEffSum += m.damage / m.gold;
       timed += 1;
@@ -351,8 +401,13 @@ export function aggregateSoloQAdvanced(input: {
     source: "soloq_riot",
     matchCount: n,
     lastSyncedAt: lastSyncedAt?.toISOString() ?? null,
+    supportFocus: n > 0 && supportGames / n >= 0.4,
     averages: {
       csPerMin: n > 0 ? round(csPerMinSum / n, 1) : null,
+      visionScore: visionN > 0 ? round(visionScoreSum / visionN, 1) : null,
+      visionPerMin: visionN > 0 ? round(visionPerMinSum / visionN, 1) : null,
+      controlWardsBought:
+        visionN > 0 ? round(controlWardsSum / visionN, 1) : null,
       goldPerMin: n > 0 ? round(goldPerMinSum / n, 0) : null,
       damagePerMin: n > 0 ? round(dmgPerMinSum / n, 0) : null,
       goldEfficiency: timed > 0 ? round(goldEffSum / timed, 3) : null,

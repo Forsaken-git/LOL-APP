@@ -200,6 +200,8 @@ CREATE TABLE "SoloQMatchSummary" (
     "durationSec" INTEGER NOT NULL,
     "teamDamage" INTEGER,
     "role" TEXT,
+    "visionScore" INTEGER,
+    "controlWardsBought" INTEGER,
     "syncedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "SoloQMatchSummary_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "PlayerAccount" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
