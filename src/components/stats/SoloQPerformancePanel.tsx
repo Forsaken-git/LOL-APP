@@ -169,13 +169,24 @@ export function SoloQPerformancePanel({
   if (error && !metrics) {
     return (
       <div className="space-y-3 px-4 py-6">
-        <p className="text-sm text-rose-300">{error}</p>
+        <p className="text-sm text-rose-300" role="alert">
+          {error}
+        </p>
         <button
           type="button"
           className="btn-ghost text-sm"
           onClick={() => void sync()}
+          disabled={syncing}
         >
-          Sync from Riot
+          {syncing ? "Syncing…" : "Sync from Riot"}
+        </button>
+        <button
+          type="button"
+          className="ml-2 text-xs text-muted underline-offset-2 hover:underline"
+          onClick={() => void load()}
+          disabled={loading || syncing}
+        >
+          Retry load
         </button>
       </div>
     );

@@ -171,13 +171,18 @@ export async function syncPlayerSoloQAdvanced(
     const existing = await prisma.soloQMatchSummary.findMany({
       where: { accountId: account.id },
       select: { matchId: true, visionScore: true, controlWardsBought: true },
+      orderBy: { playedAt: "desc" },
     });
-    // Re-fetch rows missing vision fields after schema upgrades.
-    const known = new Set(
+    // Skip complete rows. Only backfill a few incomplete ones per sync so we
+    // don't re-download the whole history and time out / rate-limit.
+    const needsVisionBackfill = new Set(
       existing
-        .filter((m) => m.visionScore != null && m.controlWardsBought != null)
+        .filter((m) => m.visionScore == null || m.controlWardsBought == null)
+        .slice(0, 8)
         .map((m) => m.matchId),
     );
+    const known = new Set(existing.map((m) => m.matchId));
+    for (const id of needsVisionBackfill) known.delete(id);
 
     const fetched = await fetchSoloQMatchExtracts(
       puuidResult.puuid,
