@@ -150,7 +150,7 @@ export function AddPlayerForm() {
             className="mt-1 w-full"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Filkus"
+            placeholder="Eminem"
             required
             autoComplete="off"
           />
@@ -161,7 +161,7 @@ export function AddPlayerForm() {
             className="mt-1 w-full"
             value={summonerName}
             onChange={(e) => setSummonerName(e.target.value)}
-            placeholder="Filkus#XDD"
+            placeholder="Logistas#LOG"
             required
             autoComplete="off"
           />
