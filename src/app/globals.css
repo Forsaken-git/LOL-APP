@@ -366,14 +366,38 @@ button.btn-ghost:hover {
   color: var(--foreground);
 }
 
-.note-editor .ProseMirror ul,
-.note-editor .ProseMirror ol {
+/* Tailwind preflight strips markers — restore bullets + 1. 2. 3. */
+.note-editor .ProseMirror ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
   margin: 0 0 0.75em;
-  padding-left: 1.35rem;
+  padding-left: 1.6rem;
+}
+
+.note-editor .ProseMirror ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+  margin: 0 0 0.75em;
+  padding-left: 1.6rem;
+}
+
+.note-editor .ProseMirror ul ul {
+  list-style-type: circle !important;
+  margin-bottom: 0;
+}
+
+.note-editor .ProseMirror ol ol {
+  list-style-type: lower-alpha !important;
+  margin-bottom: 0;
 }
 
 .note-editor .ProseMirror li {
-  margin: 0.15em 0;
+  display: list-item !important;
+  margin: 0.2em 0;
+}
+
+.note-editor .ProseMirror li p {
+  margin: 0;
 }
 
 /* TipTap wraps React node views — keep them out of text flow */
@@ -385,15 +409,19 @@ button.btn-ghost:hover {
 }
 
 .note-editor .note-image-node {
+  position: relative;
   width: 100%;
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
 
-.note-editor .note-image-node.is-dragging,
-.note-editor .note-image-node:active {
+.note-editor .note-image-node.is-dragging {
   cursor: grabbing;
+}
+
+.note-editor .note-image-node.is-resizing {
+  cursor: nwse-resize;
 }
 
 .note-editor .note-image-node.is-selected .note-image,
@@ -413,6 +441,52 @@ button.btn-ghost:hover {
   border-radius: 0.75rem;
   border: 1px solid var(--border);
   pointer-events: none;
+}
+
+.note-editor .note-image-handle {
+  position: absolute;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 2px solid var(--accent-bright);
+  background: var(--surface-elevated);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.note-editor .note-image-node:hover .note-image-handle,
+.note-editor .note-image-node.is-selected .note-image-handle,
+.note-editor .note-image-node.is-resizing .note-image-handle,
+.note-editor .note-image-node.is-dragging .note-image-handle {
+  opacity: 1;
+}
+
+.note-editor .note-image-handle--nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.note-editor .note-image-handle--ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.note-editor .note-image-handle--sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.note-editor .note-image-handle--se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
 }
 
 .note-editor .ProseMirror-dropcursor {

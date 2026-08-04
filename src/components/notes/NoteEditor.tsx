@@ -285,14 +285,14 @@ export function NoteEditor({ initial }: Props) {
             <Heading2 className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
-            label="Bullet list"
+            label="Bullet list (-)"
             active={editor?.isActive("bulletList")}
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
           >
             <List className="h-3.5 w-3.5" />
           </ToolbarButton>
           <ToolbarButton
-            label="Numbered list"
+            label="Numbered list (1. 2. 3.)"
             active={editor?.isActive("orderedList")}
             onClick={() => editor?.chain().focus().toggleOrderedList().run()}
           >
@@ -322,8 +322,10 @@ export function NoteEditor({ initial }: Props) {
       </div>
 
       <p className="text-xs text-faint">
-        Shared with the team · paste or drop images · drag images freely
-        (up/down and left/right) · large pics are compressed automatically
+        Shared with the team · type{" "}
+        <code className="text-accent-bright">- </code> or{" "}
+        <code className="text-accent-bright">1. </code> for lists · paste or drop
+        images · drag to move · corner handles to resize
       </p>
     </div>
   );
