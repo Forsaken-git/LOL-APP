@@ -60,14 +60,14 @@ export function NoteEditor({ initial }: Props) {
           return;
         }
         setSavedAt(body.updatedAt);
-        router.refresh();
+        // Avoid router.refresh() here — remounting mid-edit breaks image drag/resize.
       } catch {
         setError("Failed to save");
       } finally {
         setSaving(false);
       }
     },
-    [initial.id, router],
+    [initial.id],
   );
 
   const scheduleSave = useCallback(() => {
