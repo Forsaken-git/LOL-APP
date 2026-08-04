@@ -293,3 +293,15 @@ model DraftPrepScenario {
 
   @@unique([col, row])
 }
+
+/** Shared team notes (rich text JSON + embedded images). */
+model TeamNote {
+  id        String   @id @default(cuid())
+  title     String
+  /** TipTap/ProseMirror JSON document as string. */
+  content   String   @default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([updatedAt])
+}

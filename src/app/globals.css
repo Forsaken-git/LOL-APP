@@ -336,3 +336,93 @@ button.btn-ghost:hover {
   overflow: hidden;
   overscroll-behavior: none;
 }
+
+/* Shared team notes (TipTap) — text canvas + freely positioned images */
+.note-editor .ProseMirror {
+  position: relative;
+  min-height: 420px;
+  outline: none;
+  color: var(--foreground);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.note-editor .ProseMirror p {
+  margin: 0 0 0.75em;
+}
+
+.note-editor .ProseMirror h2 {
+  margin: 1.25em 0 0.5em;
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.note-editor .ProseMirror h3 {
+  margin: 1em 0 0.4em;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.note-editor .ProseMirror ul,
+.note-editor .ProseMirror ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.35rem;
+}
+
+.note-editor .ProseMirror li {
+  margin: 0.15em 0;
+}
+
+/* TipTap wraps React node views — keep them out of text flow */
+.note-editor .ProseMirror .react-renderer.node-image {
+  position: absolute !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+}
+
+.note-editor .note-image-node {
+  width: 100%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.note-editor .note-image-node.is-dragging,
+.note-editor .note-image-node:active {
+  cursor: grabbing;
+}
+
+.note-editor .note-image-node.is-selected .note-image,
+.note-editor .note-image-node.ProseMirror-selectednode .note-image,
+.note-editor .ProseMirror-selectednode .note-image {
+  outline: 2px solid var(--accent-bright);
+  outline-offset: 2px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+.note-editor .note-image,
+.note-editor .ProseMirror img {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+
+.note-editor .ProseMirror-dropcursor {
+  color: var(--accent-bright);
+}
+
+.note-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--faint);
+}

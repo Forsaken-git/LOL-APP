@@ -229,3 +229,15 @@ CREATE INDEX "Tierlist_playerId_idx" ON "Tierlist"("playerId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DraftSession_matchId_key" ON "DraftSession"("matchId");
+
+-- CreateTable
+CREATE TABLE "TeamNote" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL DEFAULT '{"type":"doc","content":[{"type":"paragraph"}]}',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateIndex
+CREATE INDEX "TeamNote_updatedAt_idx" ON "TeamNote"("updatedAt");

@@ -9,6 +9,7 @@ import {
   CalendarClock,
   ChartColumn,
   Binoculars,
+  StickyNote,
 } from "lucide-react";
 
 export type NavItem = {
@@ -33,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/players", label: "Players", icon: Users, mobilePrimary: true },
   { href: "/stats", label: "Stats", icon: ChartColumn },
   { href: "/scouting", label: "Scouting", icon: Binoculars },
+  { href: "/notes", label: "Notes", icon: StickyNote },
   { href: "/tierlists", label: "Tierlists", icon: ListOrdered },
 ];
 
