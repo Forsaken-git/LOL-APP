@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { activeTeamPlayerWhere } from "@/lib/players/team-player";
-import { sortPlayersByRoster } from "@/lib/player-sort";
+import {
+  comparePlayersByRoster,
+  sortPlayersByRoster,
+} from "@/lib/player-sort";
 import { fetchSoloQByRiotId, getRiotApiKey } from "@/lib/riot/soloq";
 import type { SoloQAccountResult, SoloQStatsPayload } from "@/lib/riot/types";
 import type { PlayerRegion } from "@/lib/player-accounts-shared";
+import type { LoLRole, UserRole } from "@prisma/client";
 
 const TIER_ORDER = [
   "CHALLENGER",
@@ -57,7 +61,7 @@ export type SoloQPlayerSummary = {
   combinedLosses: number;
 };
 
-/** One summary row per player, ranked by their best SoloQ account. */
+/** One summary row per player, ordered like the Players roster (lane, Fill last). */
 export function groupSoloQByPlayer(
   results: SoloQAccountResult[],
 ): SoloQPlayerSummary[] {
@@ -94,8 +98,19 @@ export function groupSoloQByPlayer(
     });
   }
 
-  summaries.sort(
-    (a, b) => soloqSortScore(b.best) - soloqSortScore(a.best),
+  summaries.sort((a, b) =>
+    comparePlayersByRoster(
+      {
+        teamRole: a.teamRole as LoLRole,
+        memberRole: a.memberRole as UserRole,
+        displayName: a.displayName,
+      },
+      {
+        teamRole: b.teamRole as LoLRole,
+        memberRole: b.memberRole as UserRole,
+        displayName: b.displayName,
+      },
+    ),
   );
   return summaries;
 }
@@ -215,7 +230,13 @@ export async function loadSoloQRosterStats(opts?: {
   });
 
   const settled = await Promise.all(jobs);
-  settled.sort((a, b) => soloqSortScore(b) - soloqSortScore(a));
+  const playerOrder = new Map(players.map((p, i) => [p.id, i]));
+  settled.sort((a, b) => {
+    const orderDiff =
+      (playerOrder.get(a.playerId) ?? 999) - (playerOrder.get(b.playerId) ?? 999);
+    if (orderDiff !== 0) return orderDiff;
+    return soloqSortScore(b) - soloqSortScore(a);
+  });
 
   return { fetchedAt, hasApiKey: true, results: settled };
 }

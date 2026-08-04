@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { getChampionRoleData } from "@/lib/champion-roles";
 import { parseTierlistRows } from "@/lib/tierlist";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import { getTierlistById, listActivePlayers } from "@/lib/tierlist-db";
@@ -13,9 +12,8 @@ export default async function TierlistDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [tierlist, championRoleData, players] = await Promise.all([
+  const [tierlist, players] = await Promise.all([
     getTierlistById(id),
-    getChampionRoleData(),
     listActivePlayers(),
   ]);
   if (!tierlist) notFound();
@@ -29,7 +27,6 @@ export default async function TierlistDetailPage({
       initialData={initialData}
       initialPlayerId={tierlist.playerId}
       players={sortPlayersByRoster(players)}
-      championRoleData={championRoleData}
     />
   );
 }

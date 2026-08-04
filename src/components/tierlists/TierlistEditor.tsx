@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { CHAMPIONS, championImageUrl } from "@/lib/champions";
-import type { ChampionRole, ChampionRoleData } from "@/lib/champion-roles";
+import {
+  championPlaysDraftLane,
+  sortChampionsByDraftPosition,
+  type DraftLane,
+} from "@/lib/draft-positions";
 import { formatTeamRole } from "@/lib/player-stats";
 import {
   allPlacedChampions,
@@ -19,7 +23,7 @@ import type { TierlistPlayerOption } from "./TierlistsView";
 
 type DragSource = { champion: string; from: string | "pool" };
 
-const ROLE_TABS: { id: ChampionRole; label: string }[] = [
+const ROLE_TABS: { id: DraftLane; label: string }[] = [
   { id: "TOP", label: "Top" },
   { id: "JUNGLE", label: "Jng" },
   { id: "MID", label: "Mid" },
@@ -33,21 +37,19 @@ export function TierlistEditor({
   initialData,
   initialPlayerId,
   players,
-  championRoleData,
 }: {
   id: string;
   name: string;
   initialData: TierlistData;
   initialPlayerId: string | null;
   players: TierlistPlayerOption[];
-  championRoleData?: ChampionRoleData;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [playerId, setPlayerId] = useState(initialPlayerId ?? "");
   const [data, setData] = useState<TierlistData>(initialData);
   const [search, setSearch] = useState("");
-  const [roleTab, setRoleTab] = useState<ChampionRole | null>(null);
+  const [roleTab, setRoleTab] = useState<DraftLane | null>(null);
   const [iconSize, setIconSize] = useState(40);
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<DragSource | null>(null);
@@ -66,15 +68,20 @@ export function TierlistEditor({
 
   const pool = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return CHAMPIONS.filter((c) => {
+    const filtered = CHAMPIONS.filter((c) => {
       if (placed.has(c)) return false;
       if (q && !c.toLowerCase().includes(q)) return false;
-      if (roleTab && championRoleData?.primaryRoleByChampion[c] !== roleTab) {
-        return false;
-      }
+      if (roleTab && !championPlaysDraftLane(c, roleTab)) return false;
       return true;
-    }).sort((a, b) => (a < b ? -1 : 1));
-  }, [placed, search, roleTab, championRoleData?.primaryRoleByChampion]);
+    });
+    // Role tabs: alpha within lane. No tab: wiki lane order (Top → Support).
+    if (roleTab) {
+      return [...filtered].sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base" }),
+      );
+    }
+    return sortChampionsByDraftPosition(filtered);
+  }, [placed, search, roleTab]);
 
   const renameTier = useCallback((tierId: string, label: string) => {
     setData((prev) => ({
