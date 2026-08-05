@@ -28,6 +28,7 @@
     "lcu:inspect-eog": "python -m scripts.lcu_spectate inspect-eog",
     "ddragon:champions": "node scripts/generate-champion-image-keys.mjs",
     "draft-positions": "node scripts/generate-draft-positions.mjs",
+    "create-user": "tsx scripts/create-user.ts",
     "postinstall": "node scripts/run-prisma.mjs generate"
   },
   "prisma": {

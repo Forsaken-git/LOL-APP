@@ -5,7 +5,9 @@
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
+    "username" TEXT,
     "email" TEXT,
+    "passwordHash" TEXT,
     "role" TEXT NOT NULL DEFAULT 'PLAYER',
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -152,6 +154,9 @@ CREATE TABLE "IngestRun" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Player_externalId_key" ON "Player"("externalId");

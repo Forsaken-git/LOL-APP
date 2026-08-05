@@ -10,6 +10,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const isDraftPrep = pathname.startsWith("/draft-prep");
+  const isLogin = pathname === "/login";
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -23,6 +24,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       document.body.style.overflow = prev;
     };
   }, [mobileMenuOpen]);
+
+  if (isLogin) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen min-h-[100dvh]">

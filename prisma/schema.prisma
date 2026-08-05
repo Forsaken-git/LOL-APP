@@ -73,13 +73,17 @@ enum LoLRegion {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  role      UserRole @default(PLAYER)
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  player    Player?
+  id           String   @id @default(cuid())
+  name         String
+  /** Login handle — unique, case-insensitive (stored lowercase). */
+  username     String?  @unique
+  email        String?  @unique
+  /** bcrypt hash — null means login not enabled for this user yet. */
+  passwordHash String?
+  role         UserRole @default(PLAYER)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  player       Player?
 }
 
 model Player {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bird, X } from "lucide-react";
+import { AuthUserMenu } from "@/components/auth/AuthUserMenu";
 import { isNavActive, NAV_ITEMS } from "./nav-items";
 
 function NavLinks({
@@ -104,16 +105,7 @@ export function Sidebar({
           <NavLinks collapsed={collapsed} />
         </nav>
 
-        {!collapsed && (
-          <div className="border-t border-border px-4 py-4">
-            <p className="rounded-lg bg-inset/80 px-3 py-2 text-[10px] leading-relaxed text-faint">
-              Data syncs via{" "}
-              <code className="font-mono text-[10px] text-accent-bright">
-                /api/ingest
-              </code>
-            </p>
-          </div>
-        )}
+        <AuthUserMenu collapsed={collapsed} />
       </aside>
 
       {/* Mobile drawer */}
@@ -147,6 +139,7 @@ export function Sidebar({
             <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
               <NavLinks collapsed={false} onNavigate={onMobileClose} />
             </nav>
+            <AuthUserMenu collapsed={false} />
           </aside>
         </div>
       )}
