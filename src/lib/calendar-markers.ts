@@ -1,7 +1,7 @@
 import { format, isSameDay, parseISO } from "date-fns";
 
 /** Calendar marker kinds (may differ from raw Prisma EventType). */
-export type MarkerKind = "prime" | "scrim" | "played";
+export type MarkerKind = "prime" | "scrim" | "meeting" | "played";
 
 export type DayMarker = {
   date: string;
@@ -36,6 +36,12 @@ export const MARKER_STYLES: Record<
     chip: "border-cyan-500/35 bg-cyan-500/12 text-foreground",
     label: "scrims",
   },
+  meeting: {
+    dot: "bg-rose-400 ring-1 ring-rose-300/35",
+    tint: "bg-rose-500/[0.12]",
+    chip: "border-rose-500/40 bg-rose-500/15 text-foreground",
+    label: "meeting",
+  },
   played: {
     dot: "bg-emerald-400 ring-1 ring-emerald-300/35 shadow-[0_0_5px_rgba(52,211,153,0.45)]",
     tint: "bg-emerald-500/[0.11]",
@@ -44,9 +50,9 @@ export const MARKER_STYLES: Record<
   },
 };
 
-const LEGEND_ORDER: MarkerKind[] = ["played", "prime", "scrim"];
+const LEGEND_ORDER: MarkerKind[] = ["played", "prime", "scrim", "meeting"];
 
-const KIND_PRIORITY: MarkerKind[] = ["played", "prime", "scrim"];
+const KIND_PRIORITY: MarkerKind[] = ["played", "prime", "scrim", "meeting"];
 
 export const DAY_STATE_STYLES = {
   today: {
@@ -66,6 +72,8 @@ export function eventTypeToMarkerKind(type: string): MarkerKind {
     case "SCRIM":
     case "TRAINING":
       return "scrim";
+    case "MEETING":
+      return "meeting";
     case "CWL":
     case "TITANS":
     case "MATCH":
@@ -78,6 +86,7 @@ export function eventTypeToMarkerKind(type: string): MarkerKind {
 export function eventTypeLabel(type: string): string {
   if (type === "PLAYED_MATCH") return "Played";
   if (type === "SCRIM" || type === "TRAINING") return "SCRIMS";
+  if (type === "MEETING") return "Meeting";
   if (type === "CWL" || type === "TITANS") return "Prime League";
   if (type === "OTHER" || type === "MATCH") return "Prime League";
   return "Prime League";

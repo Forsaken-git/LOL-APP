@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import type { EventType } from "@prisma/client";
-import { COMPETITIONS } from "@/lib/competitions";
 import { MARKER_STYLES, type CalendarEvent, type MarkerKind } from "@/lib/calendar-markers";
 import {
   formatTime24,
@@ -12,16 +11,18 @@ import {
   TIME_24_PATTERN,
 } from "@/lib/datetime";
 
-const EVENT_OPTIONS = COMPETITIONS.map((c) => ({
-  type: c.eventType,
-  kind: c.id as MarkerKind,
-  label: c.label,
-}));
+const EVENT_OPTIONS: { type: EventType; kind: MarkerKind; label: string }[] = [
+  { type: "SCRIM", kind: "scrim", label: "Scrims" },
+  { type: "OTHER", kind: "prime", label: "Prime League" },
+  { type: "MEETING", kind: "meeting", label: "Meeting" },
+];
+
+const DEFAULT_TYPE: EventType = EVENT_OPTIONS[0].type;
 
 function defaultTypeForEvent(event: CalendarEvent): EventType {
   const hit = EVENT_OPTIONS.find((o) => o.type === event.type);
   if (hit) return hit.type;
-  return COMPETITIONS[0].eventType;
+  return DEFAULT_TYPE;
 }
 
 export function EventForm({
@@ -37,7 +38,7 @@ export function EventForm({
 }) {
   const isEdit = Boolean(event);
 
-  const [type, setType] = useState(COMPETITIONS[0].eventType);
+  const [type, setType] = useState(DEFAULT_TYPE);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(() => format(selectedDate, "yyyy-MM-dd"));
   const [time, setTime] = useState("18:00");
@@ -55,7 +56,7 @@ export function EventForm({
       return;
     }
     setTitle("");
-    setType(COMPETITIONS[0].eventType);
+    setType(DEFAULT_TYPE);
     setDate(format(selectedDate, "yyyy-MM-dd"));
     setTime("18:00");
     setError("");
@@ -97,7 +98,7 @@ export function EventForm({
 
     if (!isEdit) {
       setTitle("");
-      setType(COMPETITIONS[0].eventType);
+      setType(DEFAULT_TYPE);
       setDate(format(selectedDate, "yyyy-MM-dd"));
       setTime("18:00");
     }

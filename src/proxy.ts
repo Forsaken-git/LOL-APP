@@ -6,6 +6,8 @@ function isPublicPath(pathname: string): boolean {
   if (pathname.startsWith("/api/auth/login")) return true;
   if (pathname.startsWith("/api/auth/logout")) return true;
   if (pathname.startsWith("/api/ingest")) return true;
+  // LCU collector pulls roster with INGEST_API_KEY (see route handler).
+  if (pathname === "/api/players/lcu-roster") return true;
   if (pathname.startsWith("/_next")) return true;
   if (pathname === "/favicon.ico") return true;
   if (/\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml)$/i.test(pathname)) {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 from typing import TYPE_CHECKING
@@ -17,8 +18,13 @@ def apply_hub_roster(config: CollectorConfig) -> bool:
         return False
 
     url = config.hub_url.rstrip("/") + "/api/players/lcu-roster"
+    api_key = os.environ.get("INGEST_API_KEY", "")
     try:
-        req = urllib.request.Request(url, method="GET")
+        req = urllib.request.Request(
+            url,
+            method="GET",
+            headers={**({"x-api-key": api_key} if api_key else {})},
+        )
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:

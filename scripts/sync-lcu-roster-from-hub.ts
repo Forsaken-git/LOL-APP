@@ -13,10 +13,19 @@ import { localHubUrl, loadDotEnv } from "./load-hub-env";
 async function main() {
   loadDotEnv();
   const hubUrl = localHubUrl();
+  const apiKey = process.env.INGEST_API_KEY?.trim() ?? "";
 
-  const res = await fetch(`${hubUrl}/api/players/lcu-roster`);
+  const res = await fetch(`${hubUrl}/api/players/lcu-roster`, {
+    headers: apiKey ? { "x-api-key": apiKey } : {},
+    cache: "no-store",
+  });
   if (!res.ok) {
-    throw new Error(`Hub returned ${res.status}`);
+    throw new Error(
+      `Hub returned ${res.status}` +
+        (res.status === 401
+          ? " — set INGEST_API_KEY to match the hub"
+          : ""),
+    );
   }
 
   const payload = (await res.json()) as LcuRosterPayload;
