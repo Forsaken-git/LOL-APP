@@ -22,6 +22,9 @@ import {
 import type { TierlistPlayerOption } from "./TierlistsView";
 
 type DragSource = { champion: string; from: string | "pool" };
+type DropTarget =
+  | { kind: "pool" }
+  | { kind: "tier"; tierId: string; index: number };
 
 const ROLE_TABS: { id: DraftLane; label: string }[] = [
   { id: "TOP", label: "Top" },
@@ -53,7 +56,7 @@ export function TierlistEditor({
   const [iconSize, setIconSize] = useState(40);
   const [selected, setSelected] = useState<string | null>(null);
   const [dragging, setDragging] = useState<DragSource | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | "pool" | null>(null);
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -119,8 +122,13 @@ export function TierlistEditor({
     });
   }, []);
 
-  const moveToTier = useCallback(
-    (champion: string, tierId: string, from?: string | "pool") => {
+  const moveChampion = useCallback(
+    (
+      champion: string,
+      toTierId: string,
+      toIndex: number,
+      from?: string | "pool",
+    ) => {
       setData((prev) => {
         const rows: Record<string, string[]> = {};
         for (const t of prev.tiers) {
@@ -129,23 +137,45 @@ export function TierlistEditor({
 
         const sourceTier =
           from === "pool" ? null : from ?? findTierId(prev, champion);
+
+        let fromIndex = -1;
         if (sourceTier) {
+          fromIndex = rows[sourceTier].indexOf(champion);
           rows[sourceTier] = rows[sourceTier].filter((c) => c !== champion);
         } else if (from !== "pool") {
           for (const t of prev.tiers) {
-            rows[t.id] = rows[t.id].filter((c) => c !== champion);
+            const i = rows[t.id].indexOf(champion);
+            if (i >= 0) {
+              fromIndex = i;
+              rows[t.id] = rows[t.id].filter((c) => c !== champion);
+              break;
+            }
           }
         }
 
-        if (!rows[tierId].includes(champion)) {
-          rows[tierId] = [...rows[tierId], champion];
+        const list = rows[toTierId] ?? [];
+        let insertAt = Math.max(0, Math.min(toIndex, list.length));
+        if (sourceTier === toTierId && fromIndex >= 0 && fromIndex < insertAt) {
+          insertAt -= 1;
         }
+        if (!list.includes(champion)) {
+          list.splice(insertAt, 0, champion);
+        }
+        rows[toTierId] = list;
 
         return { ...prev, rows };
       });
       setSelected(null);
     },
     [],
+  );
+
+  const moveToTier = useCallback(
+    (champion: string, tierId: string, from?: string | "pool") => {
+      // Append to end of the tier (click / number-key place).
+      moveChampion(champion, tierId, Number.MAX_SAFE_INTEGER, from);
+    },
+    [moveChampion],
   );
 
   const removeToPool = useCallback((champion: string) => {
@@ -164,17 +194,22 @@ export function TierlistEditor({
   }, []);
 
   const handleDrop = useCallback(
-    (target: string | "pool") => {
+    (target: DropTarget) => {
       if (!dragging) return;
-      if (target === "pool") {
+      if (target.kind === "pool") {
         removeToPool(dragging.champion);
       } else {
-        moveToTier(dragging.champion, target, dragging.from);
+        moveChampion(
+          dragging.champion,
+          target.tierId,
+          target.index,
+          dragging.from,
+        );
       }
       setDragging(null);
       setDropTarget(null);
     },
-    [dragging, moveToTier, removeToPool],
+    [dragging, moveChampion, removeToPool],
   );
 
   async function save() {
@@ -337,7 +372,8 @@ export function TierlistEditor({
           </div>
           {data.tiers.map((tier, index) => {
             const style = tierRowStyle(index);
-            const isDrop = dropTarget === tier.id;
+            const isDrop =
+              dropTarget?.kind === "tier" && dropTarget.tierId === tier.id;
             const champions = data.rows[tier.id] ?? [];
             return (
               <div
@@ -347,14 +383,38 @@ export function TierlistEditor({
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
-                  setDropTarget(tier.id);
+                  // Dropping on the row chrome appends (unless a champ sets a finer index).
+                  if (
+                    !(e.target as HTMLElement).closest("[data-tier-champ]")
+                  ) {
+                    setDropTarget({
+                      kind: "tier",
+                      tierId: tier.id,
+                      index: champions.length,
+                    });
+                  }
                 }}
-                onDragLeave={() =>
-                  setDropTarget((t) => (t === tier.id ? null : t))
-                }
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                    setDropTarget((t) =>
+                      t?.kind === "tier" && t.tierId === tier.id ? null : t,
+                    );
+                  }
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  handleDrop(tier.id);
+                  if (
+                    dropTarget?.kind === "tier" &&
+                    dropTarget.tierId === tier.id
+                  ) {
+                    handleDrop(dropTarget);
+                  } else {
+                    handleDrop({
+                      kind: "tier",
+                      tierId: tier.id,
+                      index: champions.length,
+                    });
+                  }
                 }}
               >
                 <div
@@ -407,41 +467,91 @@ export function TierlistEditor({
                 <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 py-1.5 pr-2">
                   {champions.length === 0 ? (
                     <span className="px-1 text-xs text-muted/60">
-                      {selected ? "Click tier name or drop here" : "Drop champions here"}
+                      {selected
+                        ? "Click tier name or drop here"
+                        : "Drop champions here"}
                     </span>
                   ) : (
-                    champions.map((champion) => (
-                      <button
-                        key={champion}
-                        type="button"
-                        draggable
-                        onDragStart={() =>
-                          setDragging({ champion, from: tier.id })
-                        }
-                        onDragEnd={() => {
-                          setDragging(null);
-                          setDropTarget(null);
-                        }}
-                        onClick={() =>
-                          setSelected((s) => (s === champion ? null : champion))
-                        }
-                        onDoubleClick={() => removeToPool(champion)}
-                        title={`${champion} · double-click to remove`}
-                        className={`${iconClass} ${
-                          selected === champion
-                            ? "scale-105 border-accent-bright ring-2 ring-accent-bright/60"
-                            : "border-white/10 hover:border-white/25"
-                        }`}
-                        style={{ width: iconSize, height: iconSize }}
-                      >
-                        <img
-                          src={championImageUrl(champion)}
-                          alt={champion}
-                          className="h-full w-full rounded-[inherit] object-cover"
-                          draggable={false}
-                        />
-                      </button>
-                    ))
+                    champions.map((champion, champIndex) => {
+                      const insertHere =
+                        dropTarget?.kind === "tier" &&
+                        dropTarget.tierId === tier.id &&
+                        dropTarget.index === champIndex &&
+                        dragging?.champion !== champion;
+                      return (
+                        <button
+                          key={champion}
+                          type="button"
+                          data-tier-champ
+                          draggable
+                          onDragStart={() =>
+                            setDragging({ champion, from: tier.id })
+                          }
+                          onDragEnd={() => {
+                            setDragging(null);
+                            setDropTarget(null);
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const rect = (
+                              e.currentTarget as HTMLElement
+                            ).getBoundingClientRect();
+                            const mid = rect.left + rect.width / 2;
+                            const index =
+                              e.clientX < mid ? champIndex : champIndex + 1;
+                            setDropTarget({
+                              kind: "tier",
+                              tierId: tier.id,
+                              index,
+                            });
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const rect = (
+                              e.currentTarget as HTMLElement
+                            ).getBoundingClientRect();
+                            const mid = rect.left + rect.width / 2;
+                            const index =
+                              e.clientX < mid ? champIndex : champIndex + 1;
+                            handleDrop({
+                              kind: "tier",
+                              tierId: tier.id,
+                              index,
+                            });
+                          }}
+                          onClick={() =>
+                            setSelected((s) =>
+                              s === champion ? null : champion,
+                            )
+                          }
+                          onDoubleClick={() => removeToPool(champion)}
+                          title={`${champion} · drag to reorder · double-click to remove`}
+                          className={`${iconClass} ${
+                            selected === champion
+                              ? "scale-105 border-accent-bright ring-2 ring-accent-bright/60"
+                              : "border-white/10 hover:border-white/25"
+                          } ${
+                            insertHere
+                              ? "ring-2 ring-accent-bright/50"
+                              : ""
+                          } ${
+                            dragging?.champion === champion
+                              ? "opacity-40"
+                              : ""
+                          }`}
+                          style={{ width: iconSize, height: iconSize }}
+                        >
+                          <img
+                            src={championImageUrl(champion)}
+                            alt={champion}
+                            className="h-full w-full rounded-[inherit] object-cover"
+                            draggable={false}
+                          />
+                        </button>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -450,8 +560,9 @@ export function TierlistEditor({
         </div>
 
         <p className="text-[11px] text-muted">
-          Rename tiers in the left column · add/remove rows as needed · drag between
-          rows · number keys place selected champion · double-click or Delete to remove
+          Rename tiers in the left column · drag champions to reorder within a
+          tier or move between rows · number keys place selected champion ·
+          double-click or Delete to remove
         </p>
       </div>
 
@@ -504,18 +615,20 @@ export function TierlistEditor({
 
         <div
           className={`min-h-[240px] flex-1 overflow-y-auto p-2 lg:max-h-[calc(100vh-12rem)] ${
-            dropTarget === "pool" ? "ring-2 ring-inset ring-white/20" : ""
+            dropTarget?.kind === "pool" ? "ring-2 ring-inset ring-white/20" : ""
           }`}
           onDragOver={(e) => {
             if (dragging?.from !== "pool") {
               e.preventDefault();
-              setDropTarget("pool");
+              setDropTarget({ kind: "pool" });
             }
           }}
-          onDragLeave={() => setDropTarget((t) => (t === "pool" ? null : t))}
+          onDragLeave={() =>
+            setDropTarget((t) => (t?.kind === "pool" ? null : t))
+          }
           onDrop={(e) => {
             e.preventDefault();
-            handleDrop("pool");
+            handleDrop({ kind: "pool" });
           }}
         >
           <div

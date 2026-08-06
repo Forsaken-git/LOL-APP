@@ -47,8 +47,8 @@ export default async function AvailabilityPage() {
         title="Schedule"
         description={
           canEditAll
-            ? "Fill free hours in your local time — saved as team time (Europe/Prague). Analytics can edit any player."
-            : "Fill free hours in your local time — saved automatically as team time for the heatmap."
+            ? "Fill free hours in your browser’s local time — saved as team time (CEST). Analytics can edit any player."
+            : "Fill free hours in your browser’s local time — saved as team time (CEST) for the heatmap."
         }
       />
 

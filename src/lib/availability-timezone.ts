@@ -11,6 +11,9 @@ import {
 export const TEAM_TIMEZONE =
   process.env.NEXT_PUBLIC_TEAM_TIMEZONE?.trim() || "Europe/Prague";
 
+/** User-facing name for team time (Central European — CEST in summer, CET in winter). */
+export const TEAM_TIME_LABEL = "CEST";
+
 const WEEKDAY_INDEX: Record<Weekday, number> = {
   monday: 0,
   tuesday: 1,
@@ -274,9 +277,9 @@ export function formatOffsetExample(
     converted.hour === sampleLocalHour &&
     localTz === TEAM_TIMEZONE
   ) {
-    return `Same as team time (${formatTimeZoneAbbreviation(TEAM_TIMEZONE, weekStart)})`;
+    return `Same as team time (${TEAM_TIME_LABEL})`;
   }
   const dayNote =
     converted.day !== "monday" ? ` ${converted.day.slice(0, 3)}` : "";
-  return `Your ${localLabel} → team ${teamLabel}${dayNote}`;
+  return `Your ${localLabel} → team ${teamLabel} ${TEAM_TIME_LABEL}${dayNote}`;
 }

@@ -24,6 +24,7 @@ import { formatTeamRole } from "@/lib/player-stats";
 import { parseAvailability } from "@/lib/week";
 import {
   TEAM_TIMEZONE,
+  TEAM_TIME_LABEL,
   detectLocalTimeZone,
   formatOffsetExample,
   formatTimeZoneAbbreviation,
@@ -178,19 +179,6 @@ export function ScheduleBoard({
     [weekStart],
   );
 
-  const updatePlayer = useCallback(
-    (playerId: string, updater: (prev: AvailabilityData) => AvailabilityData) => {
-      if (!canEditPlayer(playerId)) return;
-      setBoard((prev) => {
-        const nextSlots = updater(prev[playerId] ?? emptyAvailability());
-        const next = { ...prev, [playerId]: nextSlots };
-        persistPlayer(playerId, nextSlots);
-        return next;
-      });
-    },
-    [persistPlayer, canEditPlayer],
-  );
-
   const selectPlayer = useCallback(
     (id: string) => {
       if (!canEditAll && id !== ownPlayerId) return;
@@ -208,15 +196,13 @@ export function ScheduleBoard({
     : emptyAvailability();
   const editingLocked = !selectedPlayer || !canEditPlayer(selectedPlayer.id);
 
-  /** Own grid: paint in browser local TZ, store team TZ. Staff editing others: team TZ. */
-  const editInLocalTz = Boolean(
-    selectedPlayer && (!canEditAll || selectedPlayer.id === ownPlayerId),
-  );
+  /** Always paint in the browser's local timezone; store as team time. */
+  const editTimeZone = localTimeZone;
 
-  const mySlotsDisplay = useMemo(() => {
-    if (!editInLocalTz) return mySlotsTeam;
-    return teamToLocalAvailability(mySlotsTeam, weekStartDate, localTimeZone);
-  }, [editInLocalTz, mySlotsTeam, weekStartDate, localTimeZone]);
+  const mySlotsDisplay = useMemo(
+    () => teamToLocalAvailability(mySlotsTeam, weekStartDate, editTimeZone),
+    [mySlotsTeam, weekStartDate, editTimeZone],
+  );
 
   const updatePlayerLocal = useCallback(
     (playerId: string, updater: (prev: AvailabilityData) => AvailabilityData) => {
@@ -226,28 +212,25 @@ export function ScheduleBoard({
         const prevLocal = teamToLocalAvailability(
           prevTeam,
           weekStartDate,
-          localTimeZone,
+          editTimeZone,
         );
         const nextLocal = updater(prevLocal);
         const nextTeam = localToTeamAvailability(
           nextLocal,
           weekStartDate,
-          localTimeZone,
+          editTimeZone,
         );
         const next = { ...prev, [playerId]: nextTeam };
         persistPlayer(playerId, nextTeam);
         return next;
       });
     },
-    [canEditPlayer, persistPlayer, weekStartDate, localTimeZone],
+    [canEditPlayer, persistPlayer, weekStartDate, editTimeZone],
   );
 
-  const applyMyEdit = editInLocalTz ? updatePlayerLocal : updatePlayer;
-
-  const teamTzAbbr = formatTimeZoneAbbreviation(TEAM_TIMEZONE, weekStartDate);
-  const localTzAbbr = formatTimeZoneAbbreviation(localTimeZone, weekStartDate);
-  const sameZone = localTimeZone === TEAM_TIMEZONE;
-  const offsetExample = formatOffsetExample(weekStartDate, localTimeZone);
+  const localTzAbbr = formatTimeZoneAbbreviation(editTimeZone, weekStartDate);
+  const sameZone = editTimeZone === TEAM_TIMEZONE;
+  const offsetExample = formatOffsetExample(weekStartDate, editTimeZone);
 
   const overview = useMemo(() => {
     return WEEKDAYS.map((day, i) => {
@@ -331,7 +314,7 @@ export function ScheduleBoard({
                   <QuickBtn
                     label="Mon–Fri 18–22"
                     onClick={() =>
-                      applyMyEdit(selectedPlayer.id, (data) =>
+                      updatePlayerLocal(selectedPlayer.id, (data) =>
                         setHourRange(
                           data,
                           ["monday", "tuesday", "wednesday", "thursday", "friday"],
@@ -345,43 +328,31 @@ export function ScheduleBoard({
                   <QuickBtn
                     label="Clear all"
                     onClick={() =>
-                      applyMyEdit(selectedPlayer.id, (data) => clearGrid(data))
+                      updatePlayerLocal(selectedPlayer.id, (data) => clearGrid(data))
                     }
                   />
                 </div>
               ) : null}
 
               <div className="border-b border-white/[0.04] px-4 py-2 text-[11px] text-muted">
-                {editInLocalTz ? (
-                  sameZone ? (
-                    <p>
-                      Times in{" "}
-                      <span className="text-foreground">
-                        {formatTimeZoneCity(TEAM_TIMEZONE)} ({teamTzAbbr})
-                      </span>{" "}
-                      — same as team time. Heatmap uses this clock.
-                    </p>
-                  ) : (
-                    <p>
-                      You fill in{" "}
-                      <span className="text-foreground">
-                        your local time ({formatTimeZoneCity(localTimeZone)},{" "}
-                        {localTzAbbr})
-                      </span>
-                      . Saved as{" "}
-                      <span className="text-foreground">
-                        team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
-                      </span>
-                      . {offsetExample}.
-                    </p>
-                  )
+                {sameZone ? (
+                  <p>
+                    Editing in your browser time (
+                    <span className="text-foreground">
+                      {formatTimeZoneCity(editTimeZone)} · {localTzAbbr}
+                    </span>
+                    ) — same as team time ({TEAM_TIME_LABEL}). Heatmap uses this
+                    clock.
+                  </p>
                 ) : (
                   <p>
-                    Editing in{" "}
+                    Editing in your browser time (
                     <span className="text-foreground">
-                      team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
-                    </span>{" "}
-                    — no local conversion for other players.
+                      {formatTimeZoneCity(editTimeZone)} · {localTzAbbr}
+                    </span>
+                    ). Saved as team time (
+                    <span className="text-foreground">{TEAM_TIME_LABEL}</span>
+                    ). {offsetExample}.
                   </p>
                 )}
               </div>
@@ -390,7 +361,9 @@ export function ScheduleBoard({
                 data={mySlotsDisplay}
                 dayDates={dayDates}
                 readOnly={editingLocked}
-                onChange={(updater) => applyMyEdit(selectedPlayer.id, updater)}
+                onChange={(updater) =>
+                  updatePlayerLocal(selectedPlayer.id, updater)
+                }
               />
             </>
           )}
@@ -406,7 +379,7 @@ export function ScheduleBoard({
                 {bestDay.day}
               </span>{" "}
               ({bestDay.available.length}/{bestDay.total}) · team time{" "}
-              ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
+              ({TEAM_TIME_LABEL})
             </p>
             <div className="grid gap-2 sm:grid-cols-7">
               {overview.map(({ day, date, available, total }) => {
@@ -464,7 +437,7 @@ export function ScheduleBoard({
               <p className="mb-3 text-xs text-muted">
                 Darker green = more players available. Hours are{" "}
                 <span className="text-foreground">
-                  team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
+                  team time ({TEAM_TIME_LABEL})
                 </span>
                 .
               </p>
