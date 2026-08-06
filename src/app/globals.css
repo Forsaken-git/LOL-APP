@@ -305,6 +305,19 @@ button.btn-ghost:hover {
   background: rgba(166, 139, 124, 0.18);
 }
 
+.schedule-slot:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.schedule-slot:disabled:hover {
+  border-color: rgba(166, 139, 124, 0.18);
+}
+
+.schedule-slot[aria-pressed="true"]:disabled:hover {
+  background: rgba(166, 139, 124, 0.12);
+}
+
 .schedule-slot--heatmap {
   display: flex;
   align-items: center;
@@ -314,6 +327,10 @@ button.btn-ghost:hover {
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--accent-bright);
+  /* Display-only — allow page / horizontal scroll (paint slots use touch-action: none). */
+  touch-action: pan-x pan-y;
+  cursor: default;
+  pointer-events: none;
 }
 
 @media (max-width: 639px) {

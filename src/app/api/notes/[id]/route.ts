@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import {
   NOTE_CONTENT_MAX_CHARS,
   isValidNoteContentJson,
+  parseFolderIdInput,
 } from "@/lib/notes/content";
 
 export const dynamic = "force-dynamic";
@@ -18,10 +19,26 @@ function publicError(error: unknown, fallback: string): string {
   return msg.length > 220 ? `${msg.slice(0, 220)}…` : msg;
 }
 
+async function resolveFolderId(
+  folderId: string | null | undefined,
+): Promise<{ ok: true; folderId: string | null | undefined } | { ok: false; error: string }> {
+  if (folderId === undefined) return { ok: true, folderId: undefined };
+  if (folderId === null) return { ok: true, folderId: null };
+  const folder = await prisma.teamNoteFolder.findUnique({
+    where: { id: folderId },
+    select: { id: true },
+  });
+  if (!folder) return { ok: false, error: "Folder not found" };
+  return { ok: true, folderId };
+}
+
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   try {
-    const note = await prisma.teamNote.findUnique({ where: { id } });
+    const note = await prisma.teamNote.findUnique({
+      where: { id },
+      include: { folder: { select: { name: true } } },
+    });
     if (!note) {
       return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
@@ -29,6 +46,8 @@ export async function GET(_request: Request, context: RouteContext) {
       id: note.id,
       title: note.title,
       content: note.content,
+      folderId: note.folderId,
+      folderName: note.folder?.name ?? null,
       createdAt: note.createdAt.toISOString(),
       updatedAt: note.updatedAt.toISOString(),
     });
@@ -55,9 +74,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = (await request.json().catch(() => ({}))) as {
       title?: unknown;
       content?: unknown;
+      folderId?: unknown;
     };
 
-    const data: { title?: string; content?: string } = {};
+    const data: {
+      title?: string;
+      content?: string;
+      folderId?: string | null;
+    } = {};
 
     if (typeof body.title === "string") {
       const title = body.title.trim().slice(0, 120);
@@ -77,19 +101,36 @@ export async function PATCH(request: Request, context: RouteContext) {
       data.content = body.content;
     }
 
-    if (!data.title && !data.content) {
+    if ("folderId" in body) {
+      const parsedFolder = parseFolderIdInput(body.folderId);
+      if (!parsedFolder.ok) {
+        return NextResponse.json({ error: parsedFolder.error }, { status: 400 });
+      }
+      const folderResolved = await resolveFolderId(parsedFolder.value);
+      if (!folderResolved.ok) {
+        return NextResponse.json({ error: folderResolved.error }, { status: 400 });
+      }
+      if (folderResolved.folderId !== undefined) {
+        data.folderId = folderResolved.folderId;
+      }
+    }
+
+    if (!data.title && !data.content && !("folderId" in data)) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
     const note = await prisma.teamNote.update({
       where: { id },
       data,
+      include: { folder: { select: { name: true } } },
     });
 
     return NextResponse.json({
       id: note.id,
       title: note.title,
       content: note.content,
+      folderId: note.folderId,
+      folderName: note.folder?.name ?? null,
       createdAt: note.createdAt.toISOString(),
       updatedAt: note.updatedAt.toISOString(),
     });

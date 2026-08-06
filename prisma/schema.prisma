@@ -298,14 +298,26 @@ model DraftPrepScenario {
   @@unique([col, row])
 }
 
+/** Flat folders for shared team notes. */
+model TeamNoteFolder {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt @default(now())
+  notes     TeamNote[]
+}
+
 /** Shared team notes (rich text JSON + embedded images). */
 model TeamNote {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   title     String
   /** TipTap/ProseMirror JSON document as string. */
-  content   String   @default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
+  content   String          @default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}")
+  folderId  String?
+  folder    TeamNoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt @default(now())
 
   @@index([updatedAt])
+  @@index([folderId])
 }

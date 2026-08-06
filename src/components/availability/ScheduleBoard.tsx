@@ -11,7 +11,6 @@ import {
   countSelectedHours,
   emptyAvailability,
   formatHour,
-  isDayAvailable,
   isHourSelected,
   playersFreeOnDay,
   setHourRange,
@@ -23,6 +22,15 @@ import {
 } from "@/lib/availability";
 import { formatTeamRole } from "@/lib/player-stats";
 import { parseAvailability } from "@/lib/week";
+import {
+  TEAM_TIMEZONE,
+  detectLocalTimeZone,
+  formatOffsetExample,
+  formatTimeZoneAbbreviation,
+  formatTimeZoneCity,
+  localToTeamAvailability,
+  teamToLocalAvailability,
+} from "@/lib/availability-timezone";
 import type { LoLRole, UserRole } from "@prisma/client";
 
 const PLAYER_STORAGE_KEY = "renim-availability-player";
@@ -43,11 +51,17 @@ export function ScheduleBoard({
   weekLabel,
   players,
   initialSlots,
+  ownPlayerId,
+  canEditAll,
 }: {
   weekStartIso: string;
   weekLabel: string;
   players: SchedulePlayer[];
   initialSlots: Record<string, AvailabilityData>;
+  /** Player row linked to the logged-in user (null if not linked). */
+  ownPlayerId: string | null;
+  /** Analytics can edit any grid; everyone else only their own. */
+  canEditAll: boolean;
 }) {
   const [weekStart, setWeekStart] = useState(weekStartIso);
   const [board, setBoard] = useState<BoardState>(() =>
@@ -56,11 +70,23 @@ export function ScheduleBoard({
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<ViewMode>("mine");
   const [heatmapOpen, setHeatmapOpen] = useState(false);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(
+    () => (canEditAll ? null : ownPlayerId),
+  );
   const [saveStatus, setSaveStatus] = useState<Record<string, SaveStatus>>({});
+  const [localTimeZone, setLocalTimeZone] = useState(TEAM_TIMEZONE);
 
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const weekStartDate = useMemo(() => new Date(weekStart), [weekStart]);
+
+  useEffect(() => {
+    setLocalTimeZone(detectLocalTimeZone());
+  }, []);
+
+  const canEditPlayer = useCallback(
+    (playerId: string) => canEditAll || (ownPlayerId != null && playerId === ownPlayerId),
+    [canEditAll, ownPlayerId],
+  );
 
   const dayDates = useMemo(
     () => WEEKDAYS.map((_, i) => addDays(weekStartDate, i)),
@@ -73,10 +99,14 @@ export function ScheduleBoard({
 
   useEffect(() => {
     if (players.length === 0) return;
+    if (!canEditAll) {
+      setSelectedPlayerId(ownPlayerId);
+      return;
+    }
     const stored = localStorage.getItem(PLAYER_STORAGE_KEY);
     const match = stored ? players.find((p) => p.id === stored) : null;
-    setSelectedPlayerId(match?.id ?? players[0]!.id);
-  }, [players]);
+    setSelectedPlayerId(match?.id ?? ownPlayerId ?? players[0]!.id);
+  }, [players, canEditAll, ownPlayerId]);
 
   useEffect(() => {
     for (const t of saveTimers.current.values()) clearTimeout(t);
@@ -150,6 +180,7 @@ export function ScheduleBoard({
 
   const updatePlayer = useCallback(
     (playerId: string, updater: (prev: AvailabilityData) => AvailabilityData) => {
+      if (!canEditPlayer(playerId)) return;
       setBoard((prev) => {
         const nextSlots = updater(prev[playerId] ?? emptyAvailability());
         const next = { ...prev, [playerId]: nextSlots };
@@ -157,18 +188,66 @@ export function ScheduleBoard({
         return next;
       });
     },
-    [persistPlayer],
+    [persistPlayer, canEditPlayer],
   );
 
-  const selectPlayer = useCallback((id: string) => {
-    setSelectedPlayerId(id);
-    localStorage.setItem(PLAYER_STORAGE_KEY, id);
-  }, []);
+  const selectPlayer = useCallback(
+    (id: string) => {
+      if (!canEditAll && id !== ownPlayerId) return;
+      setSelectedPlayerId(id);
+      if (canEditAll) localStorage.setItem(PLAYER_STORAGE_KEY, id);
+    },
+    [canEditAll, ownPlayerId],
+  );
 
-  const selectedPlayer = players.find((p) => p.id === selectedPlayerId) ?? players[0];
-  const mySlots = selectedPlayer
+  const selectedPlayer = canEditAll
+    ? (players.find((p) => p.id === selectedPlayerId) ?? players[0])
+    : (players.find((p) => p.id === ownPlayerId) ?? null);
+  const mySlotsTeam = selectedPlayer
     ? (board[selectedPlayer.id] ?? emptyAvailability())
     : emptyAvailability();
+  const editingLocked = !selectedPlayer || !canEditPlayer(selectedPlayer.id);
+
+  /** Own grid: paint in browser local TZ, store team TZ. Staff editing others: team TZ. */
+  const editInLocalTz = Boolean(
+    selectedPlayer && (!canEditAll || selectedPlayer.id === ownPlayerId),
+  );
+
+  const mySlotsDisplay = useMemo(() => {
+    if (!editInLocalTz) return mySlotsTeam;
+    return teamToLocalAvailability(mySlotsTeam, weekStartDate, localTimeZone);
+  }, [editInLocalTz, mySlotsTeam, weekStartDate, localTimeZone]);
+
+  const updatePlayerLocal = useCallback(
+    (playerId: string, updater: (prev: AvailabilityData) => AvailabilityData) => {
+      if (!canEditPlayer(playerId)) return;
+      setBoard((prev) => {
+        const prevTeam = prev[playerId] ?? emptyAvailability();
+        const prevLocal = teamToLocalAvailability(
+          prevTeam,
+          weekStartDate,
+          localTimeZone,
+        );
+        const nextLocal = updater(prevLocal);
+        const nextTeam = localToTeamAvailability(
+          nextLocal,
+          weekStartDate,
+          localTimeZone,
+        );
+        const next = { ...prev, [playerId]: nextTeam };
+        persistPlayer(playerId, nextTeam);
+        return next;
+      });
+    },
+    [canEditPlayer, persistPlayer, weekStartDate, localTimeZone],
+  );
+
+  const applyMyEdit = editInLocalTz ? updatePlayerLocal : updatePlayer;
+
+  const teamTzAbbr = formatTimeZoneAbbreviation(TEAM_TIMEZONE, weekStartDate);
+  const localTzAbbr = formatTimeZoneAbbreviation(localTimeZone, weekStartDate);
+  const sameZone = localTimeZone === TEAM_TIMEZONE;
+  const offsetExample = formatOffsetExample(weekStartDate, localTimeZone);
 
   const overview = useMemo(() => {
     return WEEKDAYS.map((day, i) => {
@@ -192,8 +271,8 @@ export function ScheduleBoard({
       : `${format(weekStartDate, "MMM d")} – ${format(addDays(weekStartDate, 6), "MMM d, yyyy")}`;
 
   const mySave = selectedPlayer ? (saveStatus[selectedPlayer.id] ?? "idle") : "idle";
-  const daysFilled = countDaysWithHours(mySlots);
-  const hoursFilled = countSelectedHours(mySlots);
+  const daysFilled = countDaysWithHours(mySlotsDisplay);
+  const hoursFilled = countSelectedHours(mySlotsDisplay);
 
   return (
     <div className="space-y-6">
@@ -214,52 +293,107 @@ export function ScheduleBoard({
         </ViewTab>
       </div>
 
-      {view === "mine" && selectedPlayer && (
+      {view === "mine" && (
         <Card className="!overflow-visible !border-white/[0.05] !p-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.04] px-4 py-3">
-            <PlayerPickerCompact
-              players={players}
-              board={board}
-              selectedId={selectedPlayer.id}
-              onSelect={selectPlayer}
-            />
-            <SaveBadge
-              status={mySave}
-              daysFilled={daysFilled}
-              hoursFilled={hoursFilled}
-            />
-          </div>
+          {!selectedPlayer ? (
+            <div className="px-4 py-6 text-sm text-muted">
+              Your login isn’t linked to a roster player yet. Ask analytics to
+              match your username to your player name, or make sure your login name
+              matches your roster display name.
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.04] px-4 py-3">
+                {canEditAll ? (
+                  <PlayerPickerCompact
+                    players={players}
+                    board={board}
+                    selectedId={selectedPlayer.id}
+                    onSelect={selectPlayer}
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-foreground">
+                    {selectedPlayer.displayName}
+                    <span className="ml-2 text-xs font-normal text-muted">
+                      {formatTeamRole(selectedPlayer.teamRole)} · your schedule
+                    </span>
+                  </p>
+                )}
+                <SaveBadge
+                  status={mySave}
+                  daysFilled={daysFilled}
+                  hoursFilled={hoursFilled}
+                />
+              </div>
 
-          <div className="flex flex-wrap gap-2 border-b border-white/[0.04] px-4 py-2">
-            <QuickBtn
-              label="Mon–Fri 18–22"
-              onClick={() =>
-                updatePlayer(selectedPlayer.id, (data) =>
-                  setHourRange(
-                    data,
-                    ["monday", "tuesday", "wednesday", "thursday", "friday"],
-                    18,
-                    22,
-                    true,
-                  ),
-                )
-              }
-            />
-            <QuickBtn
-              label="Clear all"
-              onClick={() =>
-                updatePlayer(selectedPlayer.id, (data) => clearGrid(data))
-              }
-            />
-          </div>
+              {!editingLocked ? (
+                <div className="flex flex-wrap gap-2 border-b border-white/[0.04] px-4 py-2">
+                  <QuickBtn
+                    label="Mon–Fri 18–22"
+                    onClick={() =>
+                      applyMyEdit(selectedPlayer.id, (data) =>
+                        setHourRange(
+                          data,
+                          ["monday", "tuesday", "wednesday", "thursday", "friday"],
+                          18,
+                          22,
+                          true,
+                        ),
+                      )
+                    }
+                  />
+                  <QuickBtn
+                    label="Clear all"
+                    onClick={() =>
+                      applyMyEdit(selectedPlayer.id, (data) => clearGrid(data))
+                    }
+                  />
+                </div>
+              ) : null}
 
-          <TimeGrid
-            data={mySlots}
-            dayDates={dayDates}
-            onChange={(updater) =>
-              updatePlayer(selectedPlayer.id, updater)
-            }
-          />
+              <div className="border-b border-white/[0.04] px-4 py-2 text-[11px] text-muted">
+                {editInLocalTz ? (
+                  sameZone ? (
+                    <p>
+                      Times in{" "}
+                      <span className="text-foreground">
+                        {formatTimeZoneCity(TEAM_TIMEZONE)} ({teamTzAbbr})
+                      </span>{" "}
+                      — same as team time. Heatmap uses this clock.
+                    </p>
+                  ) : (
+                    <p>
+                      You fill in{" "}
+                      <span className="text-foreground">
+                        your local time ({formatTimeZoneCity(localTimeZone)},{" "}
+                        {localTzAbbr})
+                      </span>
+                      . Saved as{" "}
+                      <span className="text-foreground">
+                        team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
+                      </span>
+                      . {offsetExample}.
+                    </p>
+                  )
+                ) : (
+                  <p>
+                    Editing in{" "}
+                    <span className="text-foreground">
+                      team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
+                    </span>{" "}
+                    — no local conversion for other players.
+                  </p>
+                )}
+              </div>
+
+              <TimeGrid
+                data={mySlotsDisplay}
+                dayDates={dayDates}
+                readOnly={editingLocked}
+                onChange={(updater) => applyMyEdit(selectedPlayer.id, updater)}
+              />
+            </>
+          )}
         </Card>
       )}
 
@@ -271,7 +405,8 @@ export function ScheduleBoard({
               <span className="font-semibold capitalize text-accent-bright">
                 {bestDay.day}
               </span>{" "}
-              ({bestDay.available.length}/{bestDay.total})
+              ({bestDay.available.length}/{bestDay.total}) · team time{" "}
+              ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
             </p>
             <div className="grid gap-2 sm:grid-cols-7">
               {overview.map(({ day, date, available, total }) => {
@@ -325,10 +460,13 @@ export function ScheduleBoard({
           </button>
 
           {heatmapOpen && (
-            <Card title="Who is free when">
+            <Card title="Who is free when" className="!overflow-visible">
               <p className="mb-3 text-xs text-muted">
-                Darker green = more players available. Click a player in My week to
-                edit your grid.
+                Darker green = more players available. Hours are{" "}
+                <span className="text-foreground">
+                  team time ({formatTimeZoneCity(TEAM_TIMEZONE)}, {teamTzAbbr})
+                </span>
+                .
               </p>
               <TeamHeatmap
                 hourCounts={hourCounts}
@@ -347,10 +485,12 @@ function TimeGrid({
   data,
   dayDates,
   onChange,
+  readOnly = false,
 }: {
   data: AvailabilityData;
   dayDates: Date[];
   onChange: (updater: (prev: AvailabilityData) => AvailabilityData) => void;
+  readOnly?: boolean;
 }) {
   const paintRef = useRef<{ active: boolean; on: boolean } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -358,27 +498,29 @@ function TimeGrid({
 
   const applyCell = useCallback(
     (day: Weekday, hour: number, on: boolean) => {
+      if (readOnly) return;
       onChange((prev) => toggleHour(prev, day, hour, on));
     },
-    [onChange],
+    [onChange, readOnly],
   );
 
   const continuePaint = useCallback(
     (day: Weekday, hour: number) => {
-      if (!paintRef.current?.active) return;
+      if (readOnly || !paintRef.current?.active) return;
       applyCell(day, hour, paintRef.current.on);
     },
-    [applyCell],
+    [applyCell, readOnly],
   );
 
   const startPaint = useCallback(
     (day: Weekday, hour: number) => {
+      if (readOnly) return;
       const on = !isHourSelected(data, day, hour);
       paintRef.current = { active: true, on };
       setIsPainting(true);
       applyCell(day, hour, on);
     },
-    [applyCell, data],
+    [applyCell, data, readOnly],
   );
 
   const endPaint = useCallback(() => {
@@ -455,7 +597,7 @@ function TimeGrid({
         isPainting ? "schedule-scroll--painting" : ""
       }`}
     >
-      <table className="schedule-paint-grid w-full min-w-[24rem] border-separate border-spacing-1 select-none sm:min-w-[28rem]">
+      <table className={`w-full min-w-[24rem] border-separate border-spacing-1 select-none sm:min-w-[28rem] ${readOnly ? "" : "schedule-paint-grid"}`}>
         <thead>
           <tr>
             <th className="sticky left-0 z-10 w-11 bg-surface p-0" />
@@ -485,8 +627,10 @@ function TimeGrid({
                     <button
                       type="button"
                       aria-pressed={on}
+                      disabled={readOnly}
                       className="schedule-slot"
                       onPointerDown={(e) => {
+                        if (readOnly) return;
                         if (e.pointerType === "mouse" && e.button !== 0) return;
                         e.preventDefault();
                         startPaint(day, hour);
@@ -503,7 +647,9 @@ function TimeGrid({
         </tbody>
       </table>
       <p className="mt-2 text-[10px] text-faint/80">
-        Click or drag to mark free hours.
+        {readOnly
+          ? "View only — you can edit your own schedule in My week."
+          : "Click or drag to mark free hours."}
       </p>
     </div>
   );
@@ -519,7 +665,7 @@ function TeamHeatmap({
   playerCount: number;
 }) {
   return (
-    <div className="schedule-scroll overflow-x-auto -mx-4 px-4 sm:-mx-5 sm:px-5">
+    <div className="schedule-scroll overflow-x-auto overscroll-x-contain">
       <table className="w-full min-w-[24rem] border-separate border-spacing-1 sm:min-w-[28rem]">
         <thead>
           <tr>

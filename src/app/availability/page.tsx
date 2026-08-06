@@ -5,14 +5,20 @@ import { formatWeekRange, getWeekStart, parseAvailability } from "@/lib/week";
 import { sortPlayersByRoster } from "@/lib/player-sort";
 import type { AvailabilityData } from "@/lib/week";
 import { activeTeamPlayerWhere } from "@/lib/players/team-player";
+import { getSession } from "@/lib/auth/session";
+import {
+  canManageAllSchedules,
+  resolveOwnPlayerId,
+} from "@/lib/auth/schedule-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AvailabilityPage() {
   const weekStart = getWeekStart();
   const weekStartIso = weekStart.toISOString();
+  const session = await getSession();
 
-  const [playerRows, slots] = await Promise.all([
+  const [playerRows, slots, ownPlayerId] = await Promise.all([
     prisma.player.findMany({
       where: activeTeamPlayerWhere,
       select: {
@@ -25,6 +31,7 @@ export default async function AvailabilityPage() {
     prisma.availabilitySlot.findMany({
       where: { weekStart },
     }),
+    session ? resolveOwnPlayerId(session) : Promise.resolve(null),
   ]);
 
   const players = sortPlayersByRoster(playerRows);
@@ -32,11 +39,17 @@ export default async function AvailabilityPage() {
     slots.map((s) => [s.playerId, parseAvailability(s.slots)]),
   );
 
+  const canEditAll = session ? canManageAllSchedules(session.role) : false;
+
   return (
     <div className="space-y-8">
       <PageHeader
         title="Schedule"
-        description="Mark the hours you're free on the grid — saves automatically"
+        description={
+          canEditAll
+            ? "Fill free hours in your local time — saved as team time (Europe/Prague). Analytics can edit any player."
+            : "Fill free hours in your local time — saved automatically as team time for the heatmap."
+        }
       />
 
       <ScheduleBoard
@@ -44,6 +57,8 @@ export default async function AvailabilityPage() {
         weekLabel={formatWeekRange(weekStart)}
         players={players}
         initialSlots={initialSlots}
+        ownPlayerId={ownPlayerId}
+        canEditAll={canEditAll}
       />
     </div>
   );

@@ -19,17 +19,20 @@ import { formatDateTime24 } from "@/lib/datetime";
 import {
   NOTE_CONTENT_MAX_CHARS,
   type TeamNoteDetail,
+  type TeamNoteFolderSummary,
 } from "@/lib/notes/content";
 import { compressImageToDataUrl, isImageFile } from "@/lib/notes/images";
 import { NoteImage, nextImagePlacement } from "@/components/notes/NoteImage";
 
 type Props = {
   initial: TeamNoteDetail;
+  folders: TeamNoteFolderSummary[];
 };
 
-export function NoteEditor({ initial }: Props) {
+export function NoteEditor({ initial, folders }: Props) {
   const router = useRouter();
   const [title, setTitle] = useState(initial.title);
+  const [folderId, setFolderId] = useState<string | null>(initial.folderId);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(initial.updatedAt);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +48,11 @@ export function NoteEditor({ initial }: Props) {
   }, [title]);
 
   const persist = useCallback(
-    async (next: { title?: string; content?: string }) => {
+    async (next: {
+      title?: string;
+      content?: string;
+      folderId?: string | null;
+    }) => {
       setSaving(true);
       setError(null);
       try {
@@ -60,6 +67,7 @@ export function NoteEditor({ initial }: Props) {
           return;
         }
         setSavedAt(body.updatedAt);
+        if ("folderId" in body) setFolderId(body.folderId);
         // Avoid router.refresh() here — remounting mid-edit breaks image drag/resize.
       } catch {
         setError("Failed to save");
@@ -256,6 +264,26 @@ export function NoteEditor({ initial }: Props) {
         placeholder="Note title"
         maxLength={120}
       />
+
+      <label className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        Folder
+        <select
+          value={folderId ?? ""}
+          onChange={(e) => {
+            const next = e.target.value || null;
+            setFolderId(next);
+            void persist({ folderId: next });
+          }}
+          className="min-w-[10rem] rounded-lg border border-border bg-inset/60 px-2 py-1.5 text-sm text-foreground"
+        >
+          <option value="">Unfiled</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              {f.name}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
